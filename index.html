@@ -35,47 +35,77 @@
             </div>  
             </div>
         </div>
-        <script>
-            const apiKey = "3a618d9fab39ddef266771fbd447616b";
-            const apiUrl = "https://api.openweathermap.org/data/2.5/weather?units=metric&q=";
-            const searchBox = document.querySelector(".search input");
-            const searchBtn = document.querySelector(".search button");
-            const weatherIcon =document.querySelector(".weather-icon");
+       <script>
+const searchBox = document.querySelector(".search input");
+const searchBtn = document.querySelector(".search button");
+const weatherIcon = document.querySelector(".weather-icon");
 
-            async function checkWeather(city){
-                const response = await fetch(apiUrl + city + `&appid=${apiKey}`);
-                var data = await response.json();
+// 1. Convert city name → coordinates
+async function getCoordinates(city) {
+  const res = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`
+  );
+  const data = await res.json();
 
-                
+  if (!data.results || data.results.length === 0) {
+    alert("City not found");
+    return null;
+  }
 
-                document.querySelector(".city").innerHTML = data.name;
-                document.querySelector(".temp").innerHTML = Math.round(data.main.temp) + "°c";
-                document.querySelector(".humidity").innerHTML = data.main.humidity + "%";
-                document.querySelector(".wind").innerHTML = data.wind.speed + "km/h";
-                
-                if(data.weather[0].main == "Clouds"){
-                    weatherIcon.src = "images/clouds.png";
-                }
-                else if(data.weather[0].main == "Clear"){
-                    weatherIcon.src = "images/clear.png";
-                }
-                else if(data.weather[0].main == "Rain"){
-                    weatherIcon.src = "images/rain.png";
-                }
-                else if(data.weather[0].main == "Drizzle"){
-                    weatherIcon.src = "images/drizzle.png";
-                }
-                else if(data.weather[0].main == "Mist"){
-                    weatherIcon.src = "images/mist.png";
-                }
+  return {
+    name: data.results[0].name,
+    lat: data.results[0].latitude,
+    lon: data.results[0].longitude,
+  };
+}
 
-                document.querySelector(".weather").style.display = "block"
-            }
+// 2. Get weather using coordinates
+async function getWeather(lat, lon) {
+  const res = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m`
+  );
+  return await res.json();
+}
 
-            searchBtn.addEventListener("click", ()=>{
+// 3. Main function
+async function checkWeather(city) {
+  const location = await getCoordinates(city);
+  if (!location) return;
 
-            checkWeather(searchBox.value); 
-        })
-        </script>
+  const weatherData = await getWeather(location.lat, location.lon);
+
+  const current = weatherData.current_weather;
+
+  document.querySelector(".city").innerHTML = location.name;
+  document.querySelector(".temp").innerHTML = Math.round(current.temperature) + "°C";
+  document.querySelector(".wind").innerHTML = current.windspeed + " km/h";
+
+  // humidity (approx from hourly)
+  const humidity = weatherData.hourly.relativehumidity_2m[0];
+  document.querySelector(".humidity").innerHTML = humidity + "%";
+
+  // Weather icons (based on weathercode)
+  const code = current.weathercode;
+
+  if (code === 0) {
+    weatherIcon.src = "images/clear.png";
+  } else if (code <= 3) {
+    weatherIcon.src = "images/clouds.png";
+  } else if (code <= 67) {
+    weatherIcon.src = "images/rain.png";
+  } else if (code <= 77) {
+    weatherIcon.src = "images/snow.png";
+  } else {
+    weatherIcon.src = "images/mist.png";
+  }
+
+  document.querySelector(".weather").style.display = "block";
+}
+
+// Event
+searchBtn.addEventListener("click", () => {
+  checkWeather(searchBox.value);
+});
+</script>
     </body>
 </html>
