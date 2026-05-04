@@ -5,18 +5,68 @@
     box-sizing: border-box;
 }
 body{
-    background: #222;
-
+    min-height: 100vh;
+    background: linear-gradient(160deg, #2f3441, #16181d);
+    transition: background 0.5s ease;
 }
+
+body.day {
+    background: linear-gradient(160deg, #87ceeb, #d4f1ff 60%, #f7d794);
+}
+
+body.night {
+    background: linear-gradient(160deg, #0b1d51, #182848 60%, #090a0f);
+}
+
 .card{
     width: 90%;
     max-width: 470px;
-    background: linear-gradient(135deg, #00feba, #5b548a);
     color: #fff;
     margin: 100px auto 0;
     border-radius: 20px;
     padding: 40px 35px;
     text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+    transition: background 0.5s ease;
+}
+
+.card.day-clear {
+    background: linear-gradient(135deg, #38bdf8, #3b82f6);
+}
+
+.card.day-clouds {
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+}
+
+.card.day-rain {
+    background: linear-gradient(135deg, #4b79a1, #283e51);
+}
+
+.card.day-snow {
+    background: linear-gradient(135deg, #c9d6ff, #7f8fa6);
+}
+
+.card.day-mist {
+    background: linear-gradient(135deg, #7f8c8d, #95a5a6);
+}
+.card.night-clear {
+    background: linear-gradient(135deg, #1f3a93, #111827);
+}
+
+.card.night-clouds {
+    background: linear-gradient(135deg, #374151, #1f2937);
+}
+
+.card.night-rain {
+    background: linear-gradient(135deg, #1e3a5f, #0f172a);
+}
+
+.card.night-snow {
+    background: linear-gradient(135deg, #4b5563, #1f2937);
+}
+
+.card.night-mist {
+    background: linear-gradient(135deg, #334155, #0f172a);
 }
 .search{
     width: 100%;
@@ -114,7 +164,4 @@ body{
 .humidity, .wind{
     font-size: 28px;
     margin-top: -6px;
-}
-.weather{
-    display: none;
 }

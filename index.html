@@ -41,6 +41,7 @@ const searchBox = document.querySelector(".search input");
 const searchBtn = document.querySelector(".search button");
 const weatherIcon = document.querySelector(".weather-icon");
 const suggestionsList = document.getElementById("suggestions");
+const card = document.querySelector(".card");
 let debounceTimer;
 
 searchBox.addEventListener("input", () => {
@@ -77,18 +78,40 @@ function displaySuggestions(cities) {
         li.addEventListener("click", () => {
             searchBox.value = city.name;
             suggestionsList.style.display = "none";
-            // Directly call weather with coordinates to avoid another geocode lookup
-            checkWeatherByCoords(city.latitude, city.longitude, city.name);
+            checkWeather({ latitude: city.latitude, longitude: city.longitude, name: city.name });
         });
         
         suggestionsList.appendChild(li);
     });
 }
 
+function getWeatherTheme(code) {
+    if (code === 0) return "clear";
+    if (code <= 3) return "clouds";
+    if (code <= 67) return "rain";
+    if (code <= 77) return "snow";
+    return "mist";
+}
+
+function updateDynamicBackground(isDay, code) {
+    const periodClass = isDay ? "day" : "night";
+    const weatherClass = getWeatherTheme(code);
+
+    document.body.classList.remove("day", "night");
+    document.body.classList.add(periodClass);
+
+    card.classList.remove(
+        "day-clear", "day-clouds", "day-rain", "day-snow", "day-mist",
+        "night-clear", "night-clouds", "night-rain", "night-snow", "night-mist"
+    );
+    card.classList.add(`${periodClass}-${weatherClass}`);
+}
+
 function updateUI(cityName, weatherData) {
     const current = weatherData.current_weather;
     const humidity = weatherData.hourly.relativehumidity_2m[0];
     const code = current.weathercode;
+    const isDay = current.is_day === 1;
 
     // Update Text Content
     document.querySelector(".city").innerHTML = cityName;
@@ -108,6 +131,9 @@ function updateUI(cityName, weatherData) {
     } else {
         weatherIcon.src = "images/mist.png";
     }
+
+      // Update background by day/night and weather
+    updateDynamicBackground(isDay, code);
 
     // Show the weather card
     document.querySelector(".weather").style.display = "block";
