@@ -48,6 +48,39 @@ body{
 .search button img{
     width: 16px;
 }
+.search {
+    position: relative; /* Keep suggestions anchored to the search bar */
+}
+
+.suggestions-list {
+    position: absolute;
+    top: 100%; /* Directly below the input */
+    left: 0;
+    width: 80%; /* Match your input width */
+    background: #fff;
+    color: #333;
+    list-style: none;
+    border-radius: 0 0 10px 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none; /* Hidden by default */
+    padding: 0;
+    margin: 0;
+}
+
+.suggestions-list li {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.suggestions-list li:hover {
+    background: #f0f0f0;
+}
+.weather{
+   display: none;
+}
 .weather-icon{
     width: 170px;
     margin-top: 30px;
