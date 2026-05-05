@@ -1,47 +1,50 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <meta name="viewport" content="width-device-width, initial-scale.0">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Weather App - Easy Tutorials</title>
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
         <div class="card">
             <div class="search">
-                <input type="text" placeholder="enter city name"
-                spellcheck="false">
-                <button><img src="images/search.png"></button>
+                <input type="text" placeholder="enter city name" spellcheck="false">
+                <button><img src="images/search.png" alt="Search"></button>
                 <ul id="suggestions" class="suggestions-list"></ul>
             </div>
         
             <div class="weather">
-                <img src="images/rain.png" class="weather-icon">
-                <h1 class="temp">22°c</h1>
+                 <img src="images/rain.png" class="weather-icon" alt="Weather icon">
+                <h1 class="temp">22°C</h1>
                 <h2 class="city">Johannesburg</h2>
                 <div class="details">
-                <div class="col">
-                    <img src="images/humidity.png">
-                    <div>
-                        <p class="humidity">50%</p>
-                        <p>Humidity</p>
+                 <div class="col">
+                        <img src="images/humidity.png" alt="Humidity">
+                        <div>
+                            <p class="humidity">50%</p>
+                            <p>Humidity</p>
+                        </div>
                     </div>
+                  <div class="col">
+                        <img src="images/wind.png" alt="Wind speed">
+                        <div>
+                            <p class="wind">15 km/h</p>
+                            <p>Wind Speed</p>
+                        </div>
+                    </div>
+                      <div class="forecast">
+                    <h3>5-Day Forecast</h3>
+                    <div class="forecast-list"></div>
                 </div>
-                <div class="col">
-                    <img src="images/wind.png">
-                    <div>
-                        <p class="wind">15 km/h</p>
-                        <p>Wind Speed</p> 
-                    </div>
                 </div>
             </div>  
-            </div>
-        </div>
        <script>
 const searchBox = document.querySelector(".search input");
 const searchBtn = document.querySelector(".search button");
 const weatherIcon = document.querySelector(".weather-icon");
 const suggestionsList = document.getElementById("suggestions");
 const card = document.querySelector(".card");
+const forecastList = document.querySelector(".forecast-list");
 let debounceTimer;
 
 searchBox.addEventListener("input", () => {
@@ -53,11 +56,8 @@ searchBox.addEventListener("input", () => {
         return;
     }
 
-    // Wait 300ms after last keystroke to call API
     debounceTimer = setTimeout(async () => {
-        const res = await fetch(
-            `https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=5`
-        );
+         const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=5`);
         const data = await res.json();
 
         if (data.results) {
@@ -70,7 +70,7 @@ function displaySuggestions(cities) {
     suggestionsList.innerHTML = ""; // Clear old suggestions
     suggestionsList.style.display = "block";
 
-    cities.forEach(city => {
+    cities.forEach((city) => {
         const li = document.createElement("li");
         // Format: City Name, Admin Area, Country
         li.textContent = `${city.name}, ${city.admin1 || ""} (${city.country_code})`;
@@ -93,6 +93,15 @@ function getWeatherTheme(code) {
     return "mist";
 }
 
+function getWeatherIconPath(code) {
+    if (code === 0) return "images/clear.png";
+    if (code <= 3) return "images/clouds.png";
+    if (code <= 67) return "images/rain.png";
+    if (code <= 77) return "images/snow.png";
+    return "images/mist.png";
+}
+
+
 function updateDynamicBackground(isDay, code) {
     const periodClass = isDay ? "day" : "night";
     const weatherClass = getWeatherTheme(code);
@@ -107,33 +116,45 @@ function updateDynamicBackground(isDay, code) {
     card.classList.add(`${periodClass}-${weatherClass}`);
 }
 
+function renderForecast(weatherData) {
+    forecastList.innerHTML = "";
+
+    const { time, weathercode, temperature_2m_max: maxTemp, temperature_2m_min: minTemp } = weatherData.daily;
+
+    for (let i = 0; i < 5 && i < time.length; i += 1) {
+        const dayCard = document.createElement("div");
+        dayCard.className = "forecast-day";
+
+        const date = new Date(`${time[i]}T00:00:00`);
+        const dayLabel = date.toLocaleDateString(undefined, { weekday: "short" });
+
+        dayCard.innerHTML = `
+            <p class="forecast-weekday">${dayLabel}</p>
+            <img src="${getWeatherIconPath(weathercode[i])}" alt="Forecast icon">
+            <p class="forecast-temp">${Math.round(maxTemp[i])}° / ${Math.round(minTemp[i])}°</p>
+        `;
+
+        forecastList.appendChild(dayCard);
+    }
+}
+
+
 function updateUI(cityName, weatherData) {
     const current = weatherData.current_weather;
     const humidity = weatherData.hourly.relativehumidity_2m[0];
     const code = current.weathercode;
     const isDay = current.is_day === 1;
 
-    // Update Text Content
-    document.querySelector(".city").innerHTML = cityName;
-    document.querySelector(".temp").innerHTML = Math.round(current.temperature) + "°C";
-    document.querySelector(".wind").innerHTML = current.windspeed + " km/h";
-    document.querySelector(".humidity").innerHTML = humidity + "%";
+     document.querySelector(".city").textContent = cityName;
+    document.querySelector(".temp").textContent = `${Math.round(current.temperature)}°C`;
+    document.querySelector(".wind").textContent = `${current.windspeed} km/h`;
+    document.querySelector(".humidity").textContent = `${humidity}%`;
 
-    // Update Icon
-    if (code === 0) {
-        weatherIcon.src = "images/clear.png";
-    } else if (code <= 3) {
-        weatherIcon.src = "images/clouds.png";
-    } else if (code <= 67) {
-        weatherIcon.src = "images/rain.png";
-    } else if (code <= 77) {
-        weatherIcon.src = "images/snow.png";
-    } else {
-        weatherIcon.src = "images/mist.png";
-    }
+    weatherIcon.src = getWeatherIconPath(code);
 
       // Update background by day/night and weather
     updateDynamicBackground(isDay, code);
+      renderForecast(weatherData);
 
     // Show the weather card
     document.querySelector(".weather").style.display = "block";
@@ -141,38 +162,38 @@ function updateUI(cityName, weatherData) {
 // 1. Convert city name → coordinates
 async function getCoordinates(city) {
     try {
-  const res = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`
-  );
-  const data = await res.json();
+   const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`);
+        const data = await res.json();
 
-  if (!data.results || data.results.length === 0) {
-    alert("City not found");
-    return null;
-  }
+        if (!data.results || data.results.length === 0) {
+            alert("City not found");
+            return null;
+        }
 
-  return {
-    name: data.results[0].name,
-    lat: data.results[0].latitude,
-    lon: data.results[0].longitude,
-  };
-  } catch (error) {
-    console.error("Error fetching coordinates:", error);
-    alert("Something went wrong. Check your internet connection.");
-  }
+        return {
+            name: data.results[0].name,
+            lat: data.results[0].latitude,
+            lon: data.results[0].longitude,
+        };
+    } catch (error) {
+        console.error("Error fetching coordinates:", error);
+        alert("Something went wrong. Check your internet connection.");
+    }
 }
 
 // 2. Get weather using coordinates
 async function getWeather(lat, lon) {
-  const res = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m`
-  );
-  return await res.json();
+    const res = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`
+    );
+    return await res.json();
 }
 
 // 3. Main function
 async function checkWeather(input) {
-    let lat, lon, cityName;
+     let lat;
+    let lon;
+    let cityName;
 
     try {
         if (typeof input === "object") {

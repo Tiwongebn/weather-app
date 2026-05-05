@@ -20,59 +20,33 @@ body.night {
 
 .card{
     width: 90%;
-    max-width: 470px;
+    max-width: 560px;
     color: #fff;
-    margin: 100px auto 0;
+    margin: 60px auto 0;
     border-radius: 20px;
     padding: 40px 35px;
     text-align: center;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
     transition: background 0.5s ease;
 }
 
-.card.day-clear {
-    background: linear-gradient(135deg, #38bdf8, #3b82f6);
-}
+.card.day-clear { background: linear-gradient(135deg, #38bdf8, #3b82f6); }
+.card.day-clouds { background: linear-gradient(135deg, #94a3b8, #64748b); }
+.card.day-rain { background: linear-gradient(135deg, #4b79a1, #283e51); }
+.card.day-snow { background: linear-gradient(135deg, #c9d6ff, #7f8fa6); }
+.card.day-mist { background: linear-gradient(135deg, #7f8c8d, #95a5a6); }
+.card.night-clear { background: linear-gradient(135deg, #1f3a93, #111827); }
+.card.night-clouds { background: linear-gradient(135deg, #374151, #1f2937); }
+.card.night-rain { background: linear-gradient(135deg, #1e3a5f, #0f172a); }
+.card.night-snow { background: linear-gradient(135deg, #4b5563, #1f2937); }
+.card.night-mist { background: linear-gradient(135deg, #334155, #0f172a); }
 
-.card.day-clouds {
-    background: linear-gradient(135deg, #94a3b8, #64748b);
-}
-
-.card.day-rain {
-    background: linear-gradient(135deg, #4b79a1, #283e51);
-}
-
-.card.day-snow {
-    background: linear-gradient(135deg, #c9d6ff, #7f8fa6);
-}
-
-.card.day-mist {
-    background: linear-gradient(135deg, #7f8c8d, #95a5a6);
-}
-.card.night-clear {
-    background: linear-gradient(135deg, #1f3a93, #111827);
-}
-
-.card.night-clouds {
-    background: linear-gradient(135deg, #374151, #1f2937);
-}
-
-.card.night-rain {
-    background: linear-gradient(135deg, #1e3a5f, #0f172a);
-}
-
-.card.night-snow {
-    background: linear-gradient(135deg, #4b5563, #1f2937);
-}
-
-.card.night-mist {
-    background: linear-gradient(135deg, #334155, #0f172a);
-}
 .search{
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: relative;
 }
 .search input{
     border: 0;
@@ -95,18 +69,14 @@ body.night {
     height: 60px;
     cursor: pointer;
 }
-.search button img{
-    width: 16px;
-}
-.search {
-    position: relative; /* Keep suggestions anchored to the search bar */
-}
+
+.search button img{ width: 16px; }
 
 .suggestions-list {
     position: absolute;
     top: 100%; /* Directly below the input */
     left: 0;
-    width: 80%; /* Match your input width */
+    width: calc(100% - 76px);
     background: #fff;
     color: #333;
     list-style: none;
@@ -164,4 +134,58 @@ body.night {
 .humidity, .wind{
     font-size: 28px;
     margin-top: -6px;
+}
+.forecast {
+    margin-top: 40px;
+    text-align: left;
+}
+
+.forecast h3 {
+    font-size: 20px;
+    margin-bottom: 14px;
+    letter-spacing: 0.4px;
+}
+
+.forecast-list {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.forecast-day {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+    padding: 10px 8px;
+    text-align: center;
+    backdrop-filter: blur(3px);
+}
+
+.forecast-weekday {
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.forecast-day img {
+    width: 36px;
+    height: 36px;
+}
+
+.forecast-temp {
+    font-size: 14px;
+    margin-top: 6px;
+}
+
+@media (max-width: 560px) {
+    .card {
+        margin-top: 30px;
+        padding: 26px 18px;
+    }
+
+    .weather h2 {
+        font-size: 36px;
+    }
+
+    .forecast-list {
+        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    }
 }
