@@ -123,16 +123,16 @@ body.night {
     margin-top: 50px;
 }
 .col{
-    display: flex;
-    align-items:center ;
-    text-align: left;
+    display: flexbox;
+    align-items: center;
+    text-align: center;
 }
 .col img{
-    width: 40px;
-    margin-right: 10px;
+    width: 30px;
+    margin-bottom: 10px;
 }
 .humidity, .wind{
-    font-size: 28px;
+    font-size: 20px;
     margin-top: -6px;
 }
 .forecast {
