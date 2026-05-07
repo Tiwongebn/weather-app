@@ -72,6 +72,17 @@ body.night {
 
 .search button img{ width: 16px; }
 
+#locationBtn.locating {
+    opacity: 0.5;
+    cursor: not-allowed;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.9; }
+}
+
 .suggestions-list {
     position: absolute;
     top: 100%; /* Directly below the input */
@@ -98,6 +109,70 @@ body.night {
 .suggestions-list li:hover {
     background: #f0f0f0;
 }
+
+.status-box {
+    display: none;
+    align-items: center;
+    gap: 14px;
+    margin-top: 28px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    color: #fff;
+    text-align: left;
+}
+
+.loading-box {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.error-box {
+    background: rgba(220, 60, 60, 0.25);
+    border: 1px solid rgba(220, 60, 60, 0.45);
+}
+
+.status-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.status-text strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.status-text span {
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.dismiss-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.dismiss-btn:hover { opacity: 1; }
+
+.spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 .weather{
    display: none;
 }
@@ -123,7 +198,7 @@ body.night {
     margin-top: 50px;
 }
 .col{
-    display: flexbox;
+    display: block;
     align-items: center;
     text-align: center;
 }

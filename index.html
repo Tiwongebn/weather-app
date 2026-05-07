@@ -10,8 +10,30 @@
             <div class="search">
                 <input type="text" placeholder="enter city name" spellcheck="false">
                 <button><img src="images/search.png" alt="Search"></button>
+                <button id="locationBtn" title="Use my location">
+  <img src="images/location.png" alt="Use my location">
+</button>
                 <ul id="suggestions" class="suggestions-list"></ul>
             </div>
+
+            <!-- ★ Loading state -->
+<div class="status-box loading-box" id="loadingBox">
+  <div class="spinner"></div>
+  <div class="status-text">
+    <strong>Fetching weather…</strong>
+    <span id="loadingCity"></span>
+  </div>
+</div>
+
+<!-- ★ Error state -->
+<div class="status-box error-box" id="errorBox">
+  <span class="status-icon">⚠</span>
+  <div class="status-text">
+    <strong id="errorTitle">Something went wrong</strong>
+    <span id="errorMsg">Please try again.</span>
+  </div>
+  <button class="dismiss-btn" id="dismissError" aria-label="Dismiss error">×</button>
+</div>
         
             <div class="weather">
                  <img src="images/rain.png" class="weather-icon" alt="Weather icon">
@@ -41,15 +63,143 @@
        <script>
 const searchBox = document.querySelector(".search input");
 const searchBtn = document.querySelector(".search button");
+const locationBtn = document.getElementById("locationBtn");
 const weatherIcon = document.querySelector(".weather-icon");
 const suggestionsList = document.getElementById("suggestions");
 const card = document.querySelector(".card");
 const forecastList = document.querySelector(".forecast-list");
+
+// ★ State elements
+const loadingBox = document.getElementById("loadingBox");
+const loadingCity = document.getElementById("loadingCity");
+const errorBox = document.getElementById("errorBox");
+const errorTitle = document.getElementById("errorTitle");
+const errorMsg = document.getElementById("errorMsg");
+const dismissError = document.getElementById("dismissError");
+
 let debounceTimer;
 
+const GEO_ERRORS = {
+    1: {
+        title: "Location access denied",
+        message: "Allow location access in your browser settings and try again."
+    },
+    2: {
+        title: "Location unavailable",
+        message: "Your device couldn't determine your position. Try searching manually."
+    },
+    3: {
+        title: "Location timed out",
+        message: "It took too long to get your location. Try again or search manually."
+    },
+};
+
+locationBtn.addEventListener("click", () => {
+    // ★ Check API availability first — some browsers or HTTP contexts block it
+    if (!navigator.geolocation) {
+        showError(
+            "Geolocation not supported",
+            "Your browser doesn't support location access. Try searching manually."
+        );
+        return;
+    }
+
+    // ★ Disable button while fetching to prevent double-clicks
+    locationBtn.classList.add("locating");
+    locationBtn.disabled = true;
+    showLoading("your location");
+
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const { latitude, longitude } = position.coords;
+
+            try {
+                // ★ Reverse geocode to get a readable city name
+                const res = await fetch(
+                    `https://geocoding-api.open-meteo.com/v1/search?name=&latitude=${latitude}&longitude=${longitude}&count=1`
+                );
+
+                // Open-Meteo's geocoding API doesn't support reverse lookup,
+                // so we use a separate free reverse geocode endpoint
+                const geoRes = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+                );
+                const geoData = await geoRes.json();
+
+                // ★ Pull the best available place name from Nominatim's response
+                const cityName =
+                    geoData.address.city ||
+                    geoData.address.town ||
+                    geoData.address.village ||
+                    geoData.address.county ||
+                    "Your location";
+
+                const weatherData = await getWeather(latitude, longitude);
+                hideLoading();
+                updateUI(cityName, weatherData);
+
+            } catch {
+                showError(
+                    "Connection error",
+                    "Couldn't fetch weather for your location. Check your connection."
+                );
+            } finally {
+                // ★ Always re-enable the button when done
+                locationBtn.classList.remove("locating");
+                locationBtn.disabled = false;
+            }
+        },
+        (error) => {
+            // ★ GeolocationPositionError has a numeric code (1, 2, or 3)
+            const { title, message } = GEO_ERRORS[error.code] || {
+                title: "Location error",
+                message: "An unexpected error occurred. Try searching manually.",
+            };
+            showError(title, message);
+            locationBtn.classList.remove("locating");
+            locationBtn.disabled = false;
+        },
+        {
+            // ★ Options: reasonably tight timeout, high accuracy not needed for weather
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000, // ★ Reuse a cached position up to 5 min old — faster UX
+        }
+    );
+});
+
+// ★ Helper: show/hide states
+function showLoading(cityName) {
+    loadingBox.style.display = "flex";
+    errorBox.style.display = "none";
+    document.querySelector(".weather").style.display = "none";
+    loadingCity.textContent = cityName ? `Getting conditions for ${cityName}…` : "";
+}
+
+function hideLoading() {
+    loadingBox.style.display = "none";
+}
+
+function showError(title, message) {
+    hideLoading();
+    document.querySelector(".weather").style.display = "none";
+    errorTitle.textContent = title;
+    errorMsg.textContent = message;
+    errorBox.style.display = "flex";
+}
+
+function hideError() {
+    errorBox.style.display = "none";
+}
+
+// ★ Dismiss button
+dismissError.addEventListener("click", hideError);
+
+// ★ Hide error when user starts typing again
 searchBox.addEventListener("input", () => {
+    hideError();
     const query = searchBox.value.trim();
-    
+
     clearTimeout(debounceTimer);
     if (query.length < 2) {
         suggestionsList.style.display = "none";
@@ -57,30 +207,28 @@ searchBox.addEventListener("input", () => {
     }
 
     debounceTimer = setTimeout(async () => {
-         const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=5`);
-        const data = await res.json();
-
-        if (data.results) {
-            displaySuggestions(data.results);
+        try {
+            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=5`);
+            const data = await res.json();
+            if (data.results) displaySuggestions(data.results);
+        } catch {
+            // Silently fail on autocomplete — don't distract the user
         }
     }, 300);
 });
 
 function displaySuggestions(cities) {
-    suggestionsList.innerHTML = ""; // Clear old suggestions
+    suggestionsList.innerHTML = "";
     suggestionsList.style.display = "block";
 
     cities.forEach((city) => {
         const li = document.createElement("li");
-        // Format: City Name, Admin Area, Country
         li.textContent = `${city.name}, ${city.admin1 || ""} (${city.country_code})`;
-        
         li.addEventListener("click", () => {
             searchBox.value = city.name;
             suggestionsList.style.display = "none";
             checkWeather({ latitude: city.latitude, longitude: city.longitude, name: city.name });
         });
-        
         suggestionsList.appendChild(li);
     });
 }
@@ -101,7 +249,6 @@ function getWeatherIconPath(code) {
     return "images/mist.png";
 }
 
-
 function updateDynamicBackground(isDay, code) {
     const periodClass = isDay ? "day" : "night";
     const weatherClass = getWeatherTheme(code);
@@ -118,10 +265,9 @@ function updateDynamicBackground(isDay, code) {
 
 function renderForecast(weatherData) {
     forecastList.innerHTML = "";
-
     const { time, weathercode, temperature_2m_max: maxTemp, temperature_2m_min: minTemp } = weatherData.daily;
 
-    for (let i = 0; i < 5 && i < time.length; i += 1) {
+    for (let i = 0; i < 5 && i < time.length; i++) {
         const dayCard = document.createElement("div");
         dayCard.className = "forecast-day";
 
@@ -133,11 +279,9 @@ function renderForecast(weatherData) {
             <img src="${getWeatherIconPath(weathercode[i])}" alt="Forecast icon">
             <p class="forecast-temp">${Math.round(maxTemp[i])}° / ${Math.round(minTemp[i])}°</p>
         `;
-
         forecastList.appendChild(dayCard);
     }
 }
-
 
 function updateUI(cityName, weatherData) {
     const current = weatherData.current_weather;
@@ -145,43 +289,31 @@ function updateUI(cityName, weatherData) {
     const code = current.weathercode;
     const isDay = current.is_day === 1;
 
-     document.querySelector(".city").textContent = cityName;
+    document.querySelector(".city").textContent = cityName;
     document.querySelector(".temp").textContent = `${Math.round(current.temperature)}°C`;
     document.querySelector(".wind").textContent = `${current.windspeed} km/h`;
     document.querySelector(".humidity").textContent = `${humidity}%`;
 
     weatherIcon.src = getWeatherIconPath(code);
-
-      // Update background by day/night and weather
     updateDynamicBackground(isDay, code);
-      renderForecast(weatherData);
+    renderForecast(weatherData);
 
-    // Show the weather card
     document.querySelector(".weather").style.display = "block";
 }
-// 1. Convert city name → coordinates
+
 async function getCoordinates(city) {
-    try {
-   const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1`);
-        const data = await res.json();
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`);
+    const data = await res.json();
 
-        if (!data.results || data.results.length === 0) {
-            alert("City not found");
-            return null;
-        }
+    if (!data.results || data.results.length === 0) return null; // ★ return null instead of alerting
 
-        return {
-            name: data.results[0].name,
-            lat: data.results[0].latitude,
-            lon: data.results[0].longitude,
-        };
-    } catch (error) {
-        console.error("Error fetching coordinates:", error);
-        alert("Something went wrong. Check your internet connection.");
-    }
+    return {
+        name: data.results[0].name,
+        lat: data.results[0].latitude,
+        lon: data.results[0].longitude,
+    };
 }
 
-// 2. Get weather using coordinates
 async function getWeather(lat, lon) {
     const res = await fetch(
         `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`
@@ -189,45 +321,54 @@ async function getWeather(lat, lon) {
     return await res.json();
 }
 
-// 3. Main function
 async function checkWeather(input) {
-     let lat;
-    let lon;
-    let cityName;
+    let lat, lon, cityName;
+
+    // ★ Show loading before any async work
+    const previewName = typeof input === "object" ? input.name : input;
+    showLoading(previewName);
+    suggestionsList.style.display = "none";
 
     try {
         if (typeof input === "object") {
-            // Data from the suggestions list
             lat = input.latitude;
             lon = input.longitude;
             cityName = input.name;
         } else {
-            // Data from manual text entry
             const location = await getCoordinates(input);
-            if (!location) return;
+
+            // ★ Inline error if city not found
+            if (!location) {
+                showError("City not found", "Try a different spelling or check the city name.");
+                return;
+            }
+
             lat = location.lat;
             lon = location.lon;
             cityName = location.name;
         }
 
         const weatherData = await getWeather(lat, lon);
-        
-        // Hand off the data to the UI function
+        hideLoading(); // ★ Clear loading before showing weather
         updateUI(cityName, weatherData);
 
     } catch (error) {
-        console.error("Failed to fetch weather:", error);
+        // ★ Network or unexpected error
+        showError("Connection error", "Check your internet connection and try again.");
+        console.error("Weather fetch failed:", error);
     }
 }
-// Event
+
 searchBtn.addEventListener("click", () => {
-  checkWeather(searchBox.value);
-  searchBox.value = "";
+    if (searchBox.value.trim()) {
+        checkWeather(searchBox.value.trim());
+        searchBox.value = "";
+    }
 });
 
 searchBox.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-        checkWeather(searchBox.value);
+    if (event.key === "Enter" && searchBox.value.trim()) {
+        checkWeather(searchBox.value.trim());
     }
 });
 </script>
