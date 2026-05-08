@@ -246,15 +246,26 @@ function getWeatherIconPath(code, isDay = true) {
     const condition =
         code === 0 ? "clear" :
         code <= 3  ? "clouds" :
+        code <= 57 ? "drizzle" :
         code <= 67 ? "rain" :
         code <= 77 ? "snow" :
+         code <= 99 ? "thunderstorm" :
                      "mist";
 
-    // ★ Only clear and clouds have meaningfully different night icons
-    const hasNightVariant = condition === "clear" || condition === "clouds";
-    const folder = (!isDay && hasNightVariant) ? "images/night/" : "images/";
+    if (!isDay) {
+        const nightIconMap = {
+            clear: "images/night/clear-night.png",
+            clouds: "images/night/clouds-night.png",
+            drizzle: "images/night/drizzle-night.png",
+            rain: "images/night/rain-night.png",
+            snow: "images/night/snow-night.png",
+            thunderstorm: "images/night/thunderstorm-night.png",
+        };
 
-    return `${folder}${condition}.png`;
+        if (nightIconMap[condition]) return nightIconMap[condition];
+    }
+
+    return `images/${condition}.png`;
 }
 
 function updateDynamicBackground(isDay, code) {
@@ -271,6 +282,20 @@ function updateDynamicBackground(isDay, code) {
     card.classList.add(`${periodClass}-${weatherClass}`);
 }
 
+function isDayForForecastDate(dateStr, hourlyData) {
+    const { time = [], is_day: isDaySeries = [] } = hourlyData || {};
+    const noonKey = `${dateStr}T12:00`;
+
+    const noonIndex = time.findIndex((t) => t.startsWith(noonKey));
+    if (noonIndex >= 0) return isDaySeries[noonIndex] === 1;
+
+    const sameDayIndex = time.findIndex((t) => t.startsWith(dateStr));
+    if (sameDayIndex >= 0) return isDaySeries[sameDayIndex] === 1;
+
+    return true;
+}
+
+
 function renderForecast(weatherData) {
     forecastList.innerHTML = "";
     const { time, weathercode, temperature_2m_max: maxTemp, temperature_2m_min: minTemp } = weatherData.daily;
@@ -281,10 +306,11 @@ function renderForecast(weatherData) {
 
         const date = new Date(`${time[i]}T00:00:00`);
         const dayLabel = date.toLocaleDateString(undefined, { weekday: "short" });
+          const isDay = isDayForForecastDate(time[i], weatherData.hourly);
 
         dayCard.innerHTML = `
             <p class="forecast-weekday">${dayLabel}</p>
-            <img src="${getWeatherIconPath(weathercode[i])}" alt="Forecast icon">
+            <img src="${getWeatherIconPath(weathercode[i], isDay)}" alt="Forecast icon">
             <p class="forecast-temp">${Math.round(maxTemp[i])}° / ${Math.round(minTemp[i])}°</p>
         `;
         forecastList.appendChild(dayCard);
@@ -324,7 +350,7 @@ async function getCoordinates(city) {
 
 async function getWeather(lat, lon) {
     const res = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,is_day&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`
     );
     return await res.json();
 }
