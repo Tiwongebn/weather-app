@@ -68,6 +68,7 @@ body.night {
     width: 60px;
     height: 60px;
     cursor: pointer;
+    margin-right: 16px;
 }
 
 .search button img{ width: 16px; }
@@ -87,7 +88,7 @@ body.night {
     position: absolute;
     top: 100%; /* Directly below the input */
     left: 0;
-    width: calc(100% - 76px);
+    width: calc(100% - 152px);
     background: #fff;
     color: #333;
     list-style: none;

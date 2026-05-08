@@ -6,15 +6,15 @@
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
-        <div class="card">
-            <div class="search">
-                <input type="text" placeholder="enter city name" spellcheck="false">
-                <button><img src="images/search.png" alt="Search"></button>
-                <button id="locationBtn" title="Use my location">
-  <img src="images/location.png" alt="Use my location">
-</button>
-                <ul id="suggestions" class="suggestions-list"></ul>
-            </div>
+       <div class="card">
+    <div class="search">
+        <input type="text" placeholder="Enter City Name" spellcheck="false">
+        <button><img src="images/search.png" alt="Search"></button>
+        <button id="locationBtn" title="Use my location" aria-label="Use my location">
+            <img src="images/location.png" alt="Use my location">
+        </button>
+        <ul id="suggestions" class="suggestions-list"></ul>
+    </div>
 
             <!-- ★ Loading state -->
 <div class="status-box loading-box" id="loadingBox">
@@ -241,12 +241,20 @@ function getWeatherTheme(code) {
     return "mist";
 }
 
-function getWeatherIconPath(code) {
-    if (code === 0) return "images/clear.png";
-    if (code <= 3) return "images/clouds.png";
-    if (code <= 67) return "images/rain.png";
-    if (code <= 77) return "images/snow.png";
-    return "images/mist.png";
+// ★ Now accepts isDay as a second parameter
+function getWeatherIconPath(code, isDay = true) {
+    const condition =
+        code === 0 ? "clear" :
+        code <= 3  ? "clouds" :
+        code <= 67 ? "rain" :
+        code <= 77 ? "snow" :
+                     "mist";
+
+    // ★ Only clear and clouds have meaningfully different night icons
+    const hasNightVariant = condition === "clear" || condition === "clouds";
+    const folder = (!isDay && hasNightVariant) ? "images/night/" : "images/";
+
+    return `${folder}${condition}.png`;
 }
 
 function updateDynamicBackground(isDay, code) {
@@ -294,7 +302,7 @@ function updateUI(cityName, weatherData) {
     document.querySelector(".wind").textContent = `${current.windspeed} km/h`;
     document.querySelector(".humidity").textContent = `${humidity}%`;
 
-    weatherIcon.src = getWeatherIconPath(code);
+    weatherIcon.src = getWeatherIconPath(code, isDay);
     updateDynamicBackground(isDay, code);
     renderForecast(weatherData);
 
