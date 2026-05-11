@@ -1,0 +1,74 @@
+/* Dedicated responsive breakpoints for consistent layout across devices */
+
+@media (max-width: 900px) {
+    .card {
+        max-width: 92%;
+        padding: 32px 26px;
+    }
+
+    .weather h1 {
+        font-size: 54px;
+    }
+
+    .weather h2 {
+        font-size: 40px;
+    }
+
+    .details {
+        padding: 0 10px;
+        gap: 12px;
+    }
+
+    .forecast-list {
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .card {
+        margin-top: 30px;
+        padding: 26px 18px;
+    }
+
+    .search input {
+        font-size: 16px;
+        margin-right: 10px;
+        padding: 10px 16px;
+        height: 52px;
+    }
+
+    .search button {
+        width: 52px;
+        height: 52px;
+        margin-right: 10px;
+    }
+
+    .suggestions-list {
+        width: calc(100% - 124px);
+    }
+
+    .weather-icon {
+        width: 140px;
+    }
+
+    .weather h1 {
+        font-size: 46px;
+    }
+
+    .weather h2 {
+        font-size: 36px;
+    }
+
+    .details {
+        flex-direction: column;
+        margin-top: 30px;
+    }
+
+    .forecast {
+        width: 100%;
+    }
+
+    .forecast-list {
+        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    }
+}

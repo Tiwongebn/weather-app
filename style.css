@@ -250,18 +250,3 @@ body.night {
     font-size: 14px;
     margin-top: 6px;
 }
-
-@media (max-width: 560px) {
-    .card {
-        margin-top: 30px;
-        padding: 26px 18px;
-    }
-
-    .weather h2 {
-        font-size: 36px;
-    }
-
-    .forecast-list {
-        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-    }
-}
