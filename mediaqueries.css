@@ -84,7 +84,7 @@
      }
 
      .col {
-        flex-basis: 45%; /* Shows Humidity and Wind side-by-side */
+        flex-basis: 45%; 
         margin-bottom: 15px;
      }
     .col img {
