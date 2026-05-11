@@ -9,12 +9,15 @@
     <body>
        <div class="card">
     <div class="search">
-        <input type="text" placeholder="Enter City Name" spellcheck="false">
+        <div class="input-wrap">
+            <input type="text" placeholder="Enter City Name" spellcheck="false">
+            <ul id="suggestions" class="suggestions-list"></ul>
+        </div>
         <button><img src="images/search.png" alt="Search"></button>
         <button id="locationBtn" title="Use my location" aria-label="Use my location">
             <img src="images/location.png" alt="Use my location">
         </button>
-        <ul id="suggestions" class="suggestions-list"></ul>
+    
     </div>
 
             <!-- ★ Loading state -->

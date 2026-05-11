@@ -2,16 +2,7 @@
 
 @media (max-width: 900px) {
     .card {
-        max-width: 92%;
         padding: 30px 20px;
-    }
-
-    .weather h1 {
-        font-size: 50px;
-    }
-
-    .weather h2 {
-        font-size: 40px;
     }
 
     .details {
@@ -41,7 +32,6 @@
 
     .search input {
         font-size: 16px;
-        margin-right: 10px;
         padding: 10px 16px;
         height: 52px;
     }
@@ -49,28 +39,7 @@
     .search button {
         width: 52px;
         height: 52px;
-        margin-right: 10px;
         flex-shrink: 0;
-    }
-
-     .search button:last-child {
-        margin-right: 0;
-    }
-
-    .suggestions-list {
-        width: calc(100% - 124px);
-    }
-
-    .weather-icon {
-        width: 140px;
-    }
-
-    .weather h1 {
-        font-size: 46px;
-    }
-
-    .weather h2 {
-        font-size: 36px;
     }
 
     .details {
@@ -93,9 +62,6 @@
     .forecast {
          width: 100%;
          }
-    .forecast-list {
-        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-    }
 
     .forecast {
         width: 100%;
@@ -107,6 +73,14 @@
 }
 
 @media (max-width: 400px) {
+     .card {
+        padding: 20px 12px;
+    }
+
+    .status-box {
+        gap: 10px;
+        padding: 12px 14px;
+    }
     .forecast-list {
         /* Allow items to wrap or scroll if they don't fit */
         grid-template-columns: repeat(3, 1fr); 
