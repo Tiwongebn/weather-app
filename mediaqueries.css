@@ -41,6 +41,7 @@
         width: 52px;
         height: 52px;
         margin-right: 10px;
+        flex-shrink: 0;
     }
 
      .search button:last-child {
