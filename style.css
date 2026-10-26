@@ -1,3 +1,32 @@
+/* ★ Theme tokens — light is the default, dark overrides below */
+:root {
+    --card-shade: linear-gradient(transparent, transparent);
+    --input-bg: #ebfffc;
+    --input-text: #555;
+    --menu-bg: #fff;
+    --menu-text: #333;
+    --menu-border: #eee;
+    --menu-hover: #f0f0f0;
+    --panel-bg: rgba(255, 255, 255, 0.18);
+    --sky-dim: transparent;
+    --icon-filter: none;
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+    --card-shade: linear-gradient(rgba(8, 10, 20, 0.42), rgba(8, 10, 20, 0.42));
+    --input-bg: #1e2533;
+    --input-text: #e5e7eb;
+    --menu-bg: #1e2533;
+    --menu-text: #e5e7eb;
+    --menu-border: #2d3748;
+    --menu-hover: #2a3344;
+    --panel-bg: rgba(255, 255, 255, 0.09);
+    --sky-dim: rgba(5, 8, 20, 0.5);
+    --icon-filter: invert(1) brightness(1.4);
+    color-scheme: dark;
+}
+
 *{
     margin: 0;
     padding: 0;
@@ -18,27 +47,52 @@ body.night {
     background: linear-gradient(160deg, #0b1d51, #182848 60%, #090a0f);
 }
 
+/* ★ Sunrise and sunset glow */
+body.dawn {
+    background: linear-gradient(160deg, #ff9a8b, #fbc2a8 45%, #a1c4fd);
+}
+
+body.dusk {
+    background: linear-gradient(160deg, #2c3e7a, #c0587e 55%, #f8a35b);
+}
+
+/* ★ Daytime skies change with the weather */
+body.day.wx-clouds { background: linear-gradient(160deg, #9fb7cc, #d5dee7 60%, #b8c4cf); }
+body.day.wx-drizzle,
+body.day.wx-rain { background: linear-gradient(160deg, #5b6b7f, #8a9bb0 60%, #4a5568); }
+body.day.wx-thunderstorm { background: linear-gradient(160deg, #2d3446, #4b5568 60%, #1f2430); }
+body.day.wx-snow { background: linear-gradient(160deg, #cfd9e6, #eef3f8 60%, #b9c6d6); }
+body.day.wx-fog { background: linear-gradient(160deg, #a3aab3, #cfd3d8 60%, #9aa1aa); }
+body.night.wx-rain,
+body.night.wx-drizzle,
+body.night.wx-thunderstorm { background: linear-gradient(160deg, #10172a, #1c2438 60%, #07090f); }
+
 .card{
+    position: relative;
+    z-index: 1;
     width: min(92vw, 42rem);
     color: #fff;
-    margin: 60px auto 0;
+    margin: 60px auto;
     border-radius: 20px;
     padding: 40px 35px;
     text-align: center;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+    /* ★ --card-shade darkens the weather gradient in dark mode */
+    background: var(--card-shade), var(--card-bg, linear-gradient(transparent, transparent));
     transition: background 0.5s ease;
 }
 
-.card.day-clear { background: linear-gradient(135deg, #38bdf8, #3b82f6); }
-.card.day-clouds { background: linear-gradient(135deg, #94a3b8, #64748b); }
-.card.day-rain { background: linear-gradient(135deg, #4b79a1, #283e51); }
-.card.day-snow { background: linear-gradient(135deg, #c9d6ff, #7f8fa6); }
-.card.day-mist { background: linear-gradient(135deg, #7f8c8d, #95a5a6); }
-.card.night-clear { background: linear-gradient(135deg, #1f3a93, #111827); }
-.card.night-clouds { background: linear-gradient(135deg, #374151, #1f2937); }
-.card.night-rain { background: linear-gradient(135deg, #1e3a5f, #0f172a); }
-.card.night-snow { background: linear-gradient(135deg, #4b5563, #1f2937); }
-.card.night-mist { background: linear-gradient(135deg, #334155, #0f172a); }
+.card.day-clear { --card-bg: linear-gradient(135deg, #38bdf8, #3b82f6); }
+.card.day-clouds { --card-bg: linear-gradient(135deg, #94a3b8, #64748b); }
+.card.day-rain { --card-bg: linear-gradient(135deg, #4b79a1, #283e51); }
+/* ★ Deeper than a pure snow-white so white text stays readable */
+.card.day-snow { --card-bg: linear-gradient(135deg, #8fa3cc, #5f6f87); }
+.card.day-mist { --card-bg: linear-gradient(135deg, #7f8c8d, #95a5a6); }
+.card.night-clear { --card-bg: linear-gradient(135deg, #1f3a93, #111827); }
+.card.night-clouds { --card-bg: linear-gradient(135deg, #374151, #1f2937); }
+.card.night-rain { --card-bg: linear-gradient(135deg, #1e3a5f, #0f172a); }
+.card.night-snow { --card-bg: linear-gradient(135deg, #4b5563, #1f2937); }
+.card.night-mist { --card-bg: linear-gradient(135deg, #334155, #0f172a); }
 
 .search{
     width: 100%;
@@ -61,8 +115,8 @@ body.night {
 .search input{
     border: 0;
     outline: 0;
-    background: #ebfffc;
-    color: #555;
+    background: var(--input-bg);
+    color: var(--input-text);
     padding: 10px 25px;
     height: 60px;
     border-radius: 30px;
@@ -72,7 +126,7 @@ body.night {
 .search button{
     border: 0;
     outline: 0;
-    background: #ebfffc;
+    background: var(--input-bg);
     border-radius: 50%;
     width: clamp(3rem, 2.6rem + 1vw, 3.75rem);
     height: clamp(3rem, 2.6rem + 1vw, 3.75rem);
@@ -80,7 +134,7 @@ body.night {
     flex-shrink: 0;
 }
 
-.search button img{ width: 16px; }
+.search button img{ width: 16px; filter: var(--icon-filter); }
 
 #locationBtn.locating {
     opacity: 0.5;
@@ -99,8 +153,8 @@ body.night {
     left: 0;
    right: 0;
     width: auto;
-    background: #fff;
-    color: #333;
+    background: var(--menu-bg);
+    color: var(--menu-text);
     list-style: none;
     border-radius: 0 0 10px 10px;
     max-height: 200px;
@@ -114,11 +168,11 @@ body.night {
 .suggestions-list li {
     padding: 10px;
     cursor: pointer;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--menu-border);
 }
 
 .suggestions-list li:hover {
-    background: #f0f0f0;
+    background: var(--menu-hover);
 }
 
 .status-box {
@@ -240,7 +294,7 @@ body.night {
 }
 
 .forecast-day {
-    background: rgba(255, 255, 255, 0.18);
+    background: var(--panel-bg);
     border-radius: 12px;
     padding: 10px 8px;
     text-align: center;
@@ -260,4 +314,502 @@ body.night {
 .forecast-temp {
     font-size: 14px;
     margin-top: 6px;
+}
+/* =========================================================
+   ★ Animated sky
+   ========================================================= */
+
+.sky {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ★ Dims the whole sky in dark mode */
+.sky::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--sky-dim);
+    transition: background 0.5s ease;
+}
+
+.sun {
+    position: absolute;
+    top: 6vh;
+    right: 8vw;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fffbe0 0%, #ffd84d 38%, rgba(255, 196, 60, 0.35) 55%, rgba(255, 196, 60, 0) 70%);
+    animation: sunPulse 6s ease-in-out infinite;
+}
+
+/* ★ Sun sitting low and warm at dawn/dusk */
+.sun.low {
+    top: auto;
+    bottom: 8vh;
+    background: radial-gradient(circle, #fff1d6 0%, #ff9f43 40%, rgba(255, 120, 60, 0.3) 58%, rgba(255, 120, 60, 0) 72%);
+}
+
+@keyframes sunPulse {
+    0%, 100% { transform: scale(1); opacity: 0.95; }
+    50% { transform: scale(1.08); opacity: 1; }
+}
+
+.moon {
+    position: absolute;
+    top: 8vh;
+    right: 12vw;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    box-shadow: inset -20px 6px 0 0 #f5f3ce;
+    filter: drop-shadow(0 0 18px rgba(245, 243, 206, 0.45));
+}
+
+.star {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: var(--s);
+    height: var(--s);
+    border-radius: 50%;
+    background: #fff;
+    animation: twinkle var(--d) ease-in-out infinite;
+    animation-delay: var(--delay);
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+}
+
+.cloud {
+    position: absolute;
+    top: var(--y);
+    left: calc(var(--w) * -1.2);
+    width: var(--w);
+    height: calc(var(--w) * 0.34);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, var(--o));
+    filter: blur(4px);
+    animation: drift var(--d) linear infinite;
+    animation-delay: var(--delay);
+}
+
+.cloud::before,
+.cloud::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    background: inherit;
+}
+
+.cloud::before { width: 48%; height: 140%; top: -70%; left: 14%; }
+.cloud::after { width: 36%; height: 110%; top: -50%; left: 50%; }
+
+.cloud.dark { background: rgba(70, 80, 100, var(--o)); }
+
+@keyframes drift {
+    to { transform: translateX(calc(100vw + var(--w) * 2.4)); }
+}
+
+.drop {
+    position: absolute;
+    top: -15vh;
+    left: var(--x);
+    width: 2px;
+    height: var(--h);
+    border-radius: 2px;
+    background: linear-gradient(rgba(255, 255, 255, 0), rgba(220, 235, 255, 0.65));
+    animation: fall var(--d) linear infinite;
+    animation-delay: var(--delay);
+}
+
+@keyframes fall {
+    to { transform: translate(-6vh, 130vh); }
+}
+
+.flake {
+    position: absolute;
+    top: -5vh;
+    left: var(--x);
+    width: var(--s);
+    height: var(--s);
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0.85;
+    animation: snowfall var(--d) linear infinite;
+    animation-delay: var(--delay);
+}
+
+@keyframes snowfall {
+    0% { transform: translate(0, 0); }
+    50% { transform: translate(var(--sway), 55vh); }
+    100% { transform: translate(0, 112vh); }
+}
+
+.flash {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    animation: flash 8s infinite;
+}
+
+@keyframes flash {
+    0%, 88%, 100% { opacity: 0; }
+    89% { opacity: 0.5; }
+    90% { opacity: 0; }
+    92% { opacity: 0.3; }
+    93% { opacity: 0; }
+}
+
+.fog {
+    position: absolute;
+    left: -60vw;
+    top: var(--y);
+    width: 220vw;
+    height: 22vh;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent 60%, rgba(255, 255, 255, 0.25), transparent);
+    filter: blur(18px);
+    animation: fogDrift var(--d) ease-in-out infinite alternate;
+    animation-delay: var(--delay);
+}
+
+@keyframes fogDrift {
+    to { transform: translateX(35vw); }
+}
+
+/* ★ Respect reduced-motion: keep a static sky, drop moving particles */
+@media (prefers-reduced-motion: reduce) {
+    .sky *, .chart-line, .chart-area { animation: none !important; }
+    .drop, .flake, .flash, .cloud { display: none; }
+    .chart-line { stroke-dashoffset: 0; }
+    .chart-area { opacity: 1; }
+}
+
+/* =========================================================
+   ★ Toolbar, saved locations and save button
+   ========================================================= */
+
+.topbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.unit-toggle {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 999px;
+    background: var(--panel-bg);
+}
+
+.unit-toggle button,
+.pill-btn {
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.unit-toggle button[aria-pressed="true"] {
+    background: rgba(255, 255, 255, 0.9);
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.pill-btn { background: var(--panel-bg); }
+.pill-btn:hover { background: rgba(255, 255, 255, 0.28); }
+
+.saved-list {
+    display: none;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: var(--panel-bg);
+    border: 1px solid transparent;
+    overflow: hidden;
+}
+
+.chip.active { border-color: rgba(255, 255, 255, 0.7); }
+
+.chip button {
+    border: 0;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.chip-name { padding: 6px 4px 6px 14px; }
+.chip-remove { padding: 6px 12px 6px 6px; opacity: 0.7; font-size: 16px; }
+.chip-remove:hover { opacity: 1; }
+
+.condition {
+    font-size: 16px;
+    opacity: 0.9;
+    margin-bottom: 18px;
+}
+
+.city-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.city-row h2 { margin-top: 0; }
+
+.save-btn {
+    border: 0;
+    background: none;
+    color: #ffd84d;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.save-btn:hover { transform: scale(1.15); }
+
+.weather h3 {
+    font-size: 20px;
+    margin-bottom: 14px;
+    letter-spacing: 0.4px;
+}
+
+/* =========================================================
+   ★ What to wear / do
+   ========================================================= */
+
+.panel {
+    background: var(--panel-bg);
+    border-radius: 16px;
+    padding: 18px 20px;
+    backdrop-filter: blur(3px);
+}
+
+.advice {
+    margin-top: 36px;
+    text-align: left;
+}
+
+.advice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.advice h4 {
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.75;
+    margin-bottom: 8px;
+}
+
+.advice-list {
+    list-style: none;
+    display: grid;
+    gap: 8px;
+}
+
+.advice-list li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.advice-icon {
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+}
+
+/* =========================================================
+   ★ Hourly chart
+   ========================================================= */
+
+.hourly {
+    margin-top: 36px;
+    text-align: left;
+}
+
+.hourly-chart {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 16px;
+    background: var(--panel-bg);
+    padding: 8px 0 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
+}
+
+.hourly-chart svg {
+    display: block;
+    color: #fff;
+}
+
+.chart-line {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: drawLine 1.4s ease-out forwards;
+}
+
+.chart-area {
+    opacity: 0;
+    animation: fadeIn 1s ease-out 0.5s forwards;
+}
+
+@keyframes drawLine { to { stroke-dashoffset: 0; } }
+@keyframes fadeIn { to { opacity: 1; } }
+
+.chart-dot { fill: #fff; }
+
+.chart-temp,
+.chart-hour,
+.chart-rain {
+    fill: currentColor;
+    text-anchor: middle;
+    font-size: 13px;
+}
+
+.chart-temp { font-weight: 500; }
+.chart-hour { font-size: 12px; opacity: 0.8; }
+.chart-rain { font-size: 11px; fill: #bfdbfe; }
+
+/* =========================================================
+   ★ Insight cards
+   ========================================================= */
+
+.insights {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 36px;
+    text-align: left;
+}
+
+.insight-card {
+    background: var(--panel-bg);
+    border-radius: 16px;
+    padding: 16px 18px;
+    backdrop-filter: blur(3px);
+    min-width: 0;
+}
+
+.insight-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.75;
+}
+
+.insight-value {
+    font-size: 30px;
+    font-weight: 500;
+    margin: 4px 0 2px;
+}
+
+.insight-value.muted { opacity: 0.5; }
+
+.insight-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.insight-label .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.insight-sub {
+    font-size: 13px;
+    opacity: 0.8;
+    margin-top: 8px;
+}
+
+.meter {
+    position: relative;
+    height: 6px;
+    margin-top: 12px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #4ade80, #facc15, #fb923c, #f87171, #c084fc);
+}
+
+.meter-marker {
+    position: absolute;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.sun-arc {
+    display: block;
+    width: 100%;
+    max-width: 220px;
+    margin: 10px auto 0;
+    overflow: visible;
+}
+
+.arc-track {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.35);
+    stroke-width: 2;
+    stroke-dasharray: 4 5;
+}
+
+.arc-done {
+    fill: none;
+    stroke: #ffd84d;
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+
+.arc-sun {
+    fill: #ffd84d;
+    filter: drop-shadow(0 0 6px rgba(255, 216, 77, 0.8));
+}
+
+.arc-horizon {
+    stroke: rgba(255, 255, 255, 0.35);
+    stroke-width: 1;
+}
+
+.sun-times {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-top: 4px;
 }
