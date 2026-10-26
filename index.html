@@ -3,8 +3,12 @@
     <head>
        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Weather App</title>
-        <link rel="stylesheet" href="style.css">
-        <link rel="stylesheet" href="mediaqueries.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600&display=swap">
+        <!-- ★ ?v= busts the browser cache when the stylesheets change -->
+        <link rel="stylesheet" href="style.css?v=3">
+        <link rel="stylesheet" href="mediaqueries.css?v=3">
         <script>
             // ★ Apply the saved theme before first paint so dark mode doesn't flash
             (function () {
@@ -23,26 +27,38 @@
        <!-- ★ Animated sky layer: rain, snow, clouds, stars, sun… built from the current conditions -->
        <div class="sky" id="sky" aria-hidden="true"></div>
 
-       <div class="card">
-    <div class="topbar">
-        <div class="unit-toggle" role="group" aria-label="Temperature unit">
-            <button type="button" data-unit="metric" aria-pressed="true">°C</button>
-            <button type="button" data-unit="imperial" aria-pressed="false">°F</button>
+       <div class="app">
+    <header class="topbar">
+        <div class="place">
+            <img src="images/location.png" class="place-pin" alt="">
+            <div>
+                <div class="place-name">
+                    <span class="city">Weather</span>
+                    <button type="button" class="save-btn" id="saveBtn" aria-pressed="false" title="Save location" hidden>☆</button>
+                </div>
+                <p class="place-date" id="placeDate"></p>
+            </div>
         </div>
-        <button type="button" class="pill-btn" id="themeToggle" title="Change theme"></button>
-    </div>
 
-    <div class="search">
-        <div class="input-wrap">
-            <input type="text" placeholder="Enter City Name" spellcheck="false">
-            <ul id="suggestions" class="suggestions-list"></ul>
+        <div class="search">
+            <div class="input-wrap">
+                <input type="text" placeholder="Search for a city" spellcheck="false">
+                <ul id="suggestions" class="suggestions-list"></ul>
+            </div>
+            <button><img src="images/search.png" alt="Search"></button>
+            <button id="locationBtn" title="Use my location" aria-label="Use my location">
+                <img src="images/location.png" alt="Use my location">
+            </button>
         </div>
-        <button><img src="images/search.png" alt="Search"></button>
-        <button id="locationBtn" title="Use my location" aria-label="Use my location">
-            <img src="images/location.png" alt="Use my location">
-        </button>
 
-    </div>
+        <div class="controls">
+            <div class="unit-toggle" role="group" aria-label="Temperature unit">
+                <button type="button" data-unit="metric" aria-pressed="true">°C</button>
+                <button type="button" data-unit="imperial" aria-pressed="false">°F</button>
+            </div>
+            <button type="button" class="pill-btn" id="themeToggle" title="Change theme"></button>
+        </div>
+    </header>
 
     <!-- ★ Saved locations -->
     <div class="saved-list" id="savedList"></div>
@@ -66,65 +82,75 @@
   <button class="dismiss-btn" id="dismissError" aria-label="Dismiss error">×</button>
 </div>
 
-            <div class="weather">
-                 <img src="images/rain.png" class="weather-icon" alt="Weather icon">
-                <h1 class="temp">22°C</h1>
-                <p class="condition"></p>
-                <div class="city-row">
-                    <h2 class="city">Johannesburg</h2>
-                    <button type="button" class="save-btn" id="saveBtn" aria-pressed="false" title="Save location">☆</button>
-                </div>
-                <div class="details">
-                 <div class="col">
-                        <img src="images/humidity.png" alt="Humidity">
-                        <div>
-                            <p class="humidity">50%</p>
-                            <p>Humidity</p>
-                        </div>
-                    </div>
-                  <div class="col">
-                        <img src="images/wind.png" alt="Wind speed">
-                        <div>
-                            <p class="wind">15 km/h</p>
-                            <p>Wind Speed</p>
-                        </div>
-                    </div>
-                </div>
+    <!-- ★ First visit, before any city is loaded -->
+    <div class="welcome" id="welcome">
+        <p class="welcome-title">Search for a city to get started</p>
+        <p>Or tap the location button to use where you are.</p>
+    </div>
 
-                <!-- ★ What to wear / do -->
-                <section class="advice panel">
-                    <h3>What to wear &amp; do</h3>
-                    <div class="advice-grid">
-                        <div>
-                            <h4>Wear</h4>
-                            <ul class="advice-list" id="wearList"></ul>
-                        </div>
-                        <div>
-                            <h4>Do</h4>
-                            <ul class="advice-list" id="doList"></ul>
+            <main class="weather">
+                <section class="hero">
+                    <div class="hero-main">
+                        <h1 class="temp">22<span class="temp-unit">°C</span></h1>
+                        <p class="condition"></p>
+                        <p class="feels"></p>
+                        <div class="details">
+                            <div class="stat">
+                                <p class="stat-label"><img src="images/wind.png" alt="">Wind</p>
+                                <p class="wind">15 km/h</p>
+                            </div>
+                            <div class="stat">
+                                <p class="stat-label"><img src="images/humidity.png" alt="">Humidity</p>
+                                <p class="humidity">50%</p>
+                            </div>
                         </div>
                     </div>
+
+                    <div class="hero-visual">
+                        <img src="images/rain.png" class="weather-icon" alt="Weather icon">
+                    </div>
+
+                    <aside class="daily">
+                        <h3 class="section-title">7-Day Forecast</h3>
+                        <ul class="forecast-list"></ul>
+                    </aside>
                 </section>
 
                 <!-- ★ Hourly temperature chart -->
                 <section class="hourly">
-                    <h3>Next 24 Hours</h3>
+                    <div class="section-head">
+                        <h3 class="section-title">Next 24 Hours</h3>
+                        <div class="scroll-btns">
+                            <button type="button" id="hourlyPrev" aria-label="Scroll back">‹</button>
+                            <button type="button" id="hourlyNext" aria-label="Scroll forward">›</button>
+                        </div>
+                    </div>
                     <div class="hourly-chart" id="hourlyChart"></div>
                 </section>
 
-                      <div class="forecast">
-                    <h3>5-Day Forecast</h3>
-                    <div class="forecast-list"></div>
-                </div>
+                <section class="extras">
+                    <!-- ★ What to wear / do -->
+                    <div class="advice panel">
+                        <h3 class="section-title">What to wear &amp; do</h3>
+                        <div class="advice-grid">
+                            <div>
+                                <h4>Wear</h4>
+                                <ul class="advice-list" id="wearList"></ul>
+                            </div>
+                            <div>
+                                <h4>Do</h4>
+                                <ul class="advice-list" id="doList"></ul>
+                            </div>
+                        </div>
+                    </div>
 
-                <!-- ★ Air quality, UV, pollen and sun cards -->
-                <section class="insights">
-                    <div class="insight-card" id="aqiCard"></div>
-                    <div class="insight-card" id="uvCard"></div>
-                    <div class="insight-card" id="pollenCard"></div>
-                    <div class="insight-card" id="sunCard"></div>
+                    <!-- ★ Air quality, UV, pollen and sun cards -->
+                    <div class="insight-card panel" id="aqiCard"></div>
+                    <div class="insight-card panel" id="uvCard"></div>
+                    <div class="insight-card panel" id="pollenCard"></div>
+                    <div class="insight-card panel" id="sunCard"></div>
                 </section>
-            </div>
+            </main>
        </div>
        <script>
 const searchBox = document.querySelector(".search input");
@@ -132,7 +158,7 @@ const searchBtn = document.querySelector(".search button");
 const locationBtn = document.getElementById("locationBtn");
 const weatherIcon = document.querySelector(".weather-icon");
 const suggestionsList = document.getElementById("suggestions");
-const card = document.querySelector(".card");
+const welcome = document.getElementById("welcome");
 const forecastList = document.querySelector(".forecast-list");
 const sky = document.getElementById("sky");
 const hourlyChart = document.getElementById("hourlyChart");
@@ -393,6 +419,7 @@ function showLoading(cityName) {
     loadingBox.style.display = "flex";
     errorBox.style.display = "none";
     document.querySelector(".weather").style.display = "none";
+    welcome.style.display = "none";
     loadingCity.textContent = cityName ? `Getting conditions for ${cityName}…` : "";
 }
 
@@ -403,6 +430,7 @@ function hideLoading() {
 function showError(title, message) {
     hideLoading();
     document.querySelector(".weather").style.display = "none";
+    welcome.style.display = "none";
     errorTitle.textContent = title;
     errorMsg.textContent = message;
     errorBox.style.display = "flex";
@@ -469,13 +497,6 @@ function getCondition(code) {
     return "clouds";
 }
 
-function getWeatherTheme(code) {
-    const condition = getCondition(code);
-    if (condition === "drizzle" || condition === "thunderstorm") return "rain";
-    if (condition === "fog") return "mist";
-    return condition;
-}
-
 // ★ Now accepts isDay as a second parameter
 function getWeatherIconPath(code, isDay = true) {
     const condition = getCondition(code);
@@ -512,21 +533,9 @@ function getTimeOfDay(weatherData) {
 }
 
 function updateDynamicBackground(weatherData) {
-    const { weather_code: code, is_day } = weatherData.current;
-    const periodClass = is_day === 1 ? "day" : "night";
-    const weatherClass = getWeatherTheme(code);
-    const timeOfDay = getTimeOfDay(weatherData);
-    const condition = getCondition(code);
-
-    document.body.className = `${timeOfDay} wx-${condition}`;
-
-    card.classList.remove(
-        "day-clear", "day-clouds", "day-rain", "day-snow", "day-mist",
-        "night-clear", "night-clouds", "night-rain", "night-snow", "night-mist"
-    );
-    card.classList.add(`${periodClass}-${weatherClass}`);
-
-    renderSky(condition, timeOfDay);
+    const condition = getCondition(weatherData.current.weather_code);
+    document.body.className = `${getTimeOfDay(weatherData)} wx-${condition}`;
+    renderSky(condition, getTimeOfDay(weatherData));
 }
 
 const random = (min, max) => min + Math.random() * (max - min);
@@ -636,20 +645,24 @@ function renderForecast(weatherData) {
     forecastList.innerHTML = "";
     const { time, weather_code: weathercode, temperature_2m_max: maxTemp, temperature_2m_min: minTemp } = weatherData.daily;
 
-    for (let i = 0; i < 5 && i < time.length; i++) {
-        const dayCard = document.createElement("div");
-        dayCard.className = "forecast-day";
+    for (let i = 0; i < 7 && i < time.length; i++) {
+        const dayRow = document.createElement("li");
+        dayRow.className = "forecast-day";
+        if (i === 0) dayRow.classList.add("today");
 
         const date = new Date(`${time[i]}T00:00:00`);
-        const dayLabel = date.toLocaleDateString(undefined, { weekday: "short" });
-          const isDay = isDayForForecastDate(time[i], weatherData.hourly);
+        const dayLabel = i === 0 ? "Today" : date.toLocaleDateString(undefined, { weekday: "long" });
+        const isDay = isDayForForecastDate(time[i], weatherData.hourly);
 
-        dayCard.innerHTML = `
-            <p class="forecast-weekday">${dayLabel}</p>
-            <img src="${getWeatherIconPath(weathercode[i], isDay)}" alt="Forecast icon">
-            <p class="forecast-temp">${formatTemp(maxTemp[i])} / ${formatTemp(minTemp[i])}</p>
+        dayRow.innerHTML = `
+            <img src="${getWeatherIconPath(weathercode[i], isDay)}" alt="">
+            <div class="forecast-name">
+                <p class="forecast-weekday">${dayLabel}</p>
+                <p class="forecast-desc">${WEATHER_LABELS[weathercode[i]] || ""}</p>
+            </div>
+            <p class="forecast-temp">${formatTemp(maxTemp[i])}<span>${formatTemp(minTemp[i])}</span></p>
         `;
-        forecastList.appendChild(dayCard);
+        forecastList.appendChild(dayRow);
     }
 }
 
@@ -677,7 +690,7 @@ function smoothPath(points) {
     return d;
 }
 
-function renderHourlyChart(weatherData) {
+function renderHourlyChart(weatherData, animate = true) {
     const {
         time,
         temperature_2m: temps,
@@ -693,12 +706,13 @@ function renderHourlyChart(weatherData) {
         return;
     }
 
-    const step = 58;
+    // ★ Spread the hours across the available width; scroll only when they can't fit
     const padX = 30;
-    const height = 182;
-    const lineTop = 34;
-    const lineBottom = 100;
-    const width = padX * 2 + (count - 1) * step;
+    const step = Math.max(48, (hourlyChart.clientWidth - padX * 2) / (count - 1));
+    const height = 190;
+    const lineTop = 40;
+    const lineBottom = 92;
+    const width = Math.floor(padX * 2 + (count - 1) * step);
 
     const values = temps.slice(start, start + count).map(toUnit);
     const min = Math.min(...values);
@@ -706,12 +720,12 @@ function renderHourlyChart(weatherData) {
     const range = max - min || 1;
 
     const points = values.map((value, i) => ({
-        x: padX + i * step,
+        x: Math.round(padX + i * step),
         y: lineBottom - ((value - min) / range) * (lineBottom - lineTop),
     }));
 
     const line = smoothPath(points);
-    const area = `${line} L ${points[points.length - 1].x} ${height - 66} L ${points[0].x} ${height - 66} Z`;
+    const area = `${line} L ${points[points.length - 1].x} 118 L ${points[0].x} 118 Z`;
 
     const columns = points.map((point, i) => {
         const index = start + i;
@@ -722,30 +736,61 @@ function renderHourlyChart(weatherData) {
         const icon = getWeatherIconPath(codes[index], isDaySeries[index] === 1);
 
         return `
-            <text class="chart-temp" x="${point.x}" y="${(point.y - 12).toFixed(1)}">${Math.round(values[i])}°</text>
-            <circle class="chart-dot" cx="${point.x}" cy="${point.y.toFixed(1)}" r="${i === 0 ? 5 : 3}"></circle>
-            <image href="${icon}" x="${point.x - 12}" y="120" width="24" height="24"></image>
-            ${chance >= 20 ? `<text class="chart-rain" x="${point.x}" y="158">${chance}%</text>` : ""}
-            <text class="chart-hour" x="${point.x}" y="176">${hourLabel}</text>
+            <g class="${i === 0 ? "chart-col now" : "chart-col"}">
+                <text class="chart-temp" x="${point.x}" y="${(point.y - 14).toFixed(1)}">${Math.round(values[i])}°</text>
+                <circle class="chart-dot" cx="${point.x}" cy="${point.y.toFixed(1)}" r="${i === 0 ? 6 : 2.5}"></circle>
+                <line class="chart-tick" x1="${point.x}" y1="124" x2="${point.x}" y2="130"></line>
+                <image href="${icon}" x="${point.x - 12}" y="134" width="24" height="24"></image>
+                ${chance >= 20 ? `<text class="chart-rain" x="${point.x}" y="170">${chance}%</text>` : ""}
+                ${i === 0 ? `<rect class="chart-now-pill" x="${point.x - 22}" y="173" width="44" height="17" rx="5"></rect>` : ""}
+                <text class="chart-hour" x="${point.x}" y="186">${hourLabel}</text>
+            </g>
         `;
     }).join("");
 
+    // ★ fill/stroke are set as attributes too, so the chart still draws sensibly if the CSS is stale
     hourlyChart.innerHTML = `
-        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"
+        <svg class="${animate ? "" : "static"}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"
              aria-label="Temperature for the next ${count} hours, from ${Math.round(min)}° to ${Math.round(max)}°">
             <defs>
                 <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#fff" stop-opacity="0.45"></stop>
+                    <stop offset="0%" stop-color="#fff" stop-opacity="0.18"></stop>
                     <stop offset="100%" stop-color="#fff" stop-opacity="0"></stop>
                 </linearGradient>
             </defs>
-            <path class="chart-area" d="${area}" fill="url(#chartFill)"></path>
-            <path class="chart-line" d="${line}" pathLength="1"></path>
+            <path class="chart-area" d="${area}" fill="url(#chartFill)" stroke="none"></path>
+            <path class="chart-line" d="${line}" pathLength="1" fill="none" stroke="#fff"></path>
             ${columns}
         </svg>
     `;
+    hourlyChart.dataset.width = hourlyChart.clientWidth;
     hourlyChart.scrollLeft = 0;
+    updateScrollButtons();
 }
+
+function updateScrollButtons() {
+    const scrollable = hourlyChart.scrollWidth > hourlyChart.clientWidth + 2;
+    document.querySelector(".scroll-btns").style.visibility = scrollable ? "visible" : "hidden";
+}
+
+document.getElementById("hourlyPrev").addEventListener("click", () => {
+    hourlyChart.scrollBy({ left: -hourlyChart.clientWidth * 0.8, behavior: "smooth" });
+});
+document.getElementById("hourlyNext").addEventListener("click", () => {
+    hourlyChart.scrollBy({ left: hourlyChart.clientWidth * 0.8, behavior: "smooth" });
+});
+
+// ★ Re-fit the chart when the window is resized
+let resizeTimer;
+window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        // ★ Only redraw (without the draw-in animation) when the chart's width actually changed
+        const svg = hourlyChart.querySelector("svg");
+        if (!lastWeather || !svg || hourlyChart.dataset.width === String(hourlyChart.clientWidth)) return;
+        renderHourlyChart(lastWeather, false);
+    }, 150);
+});
 
 function updateUI(place, weatherData, airData) {
     currentPlace = { name: place.name, latitude: place.latitude, longitude: place.longitude };
@@ -756,8 +801,11 @@ function updateUI(place, weatherData, airData) {
     prefs.last = currentPlace;
     savePrefs();
 
-    renderAll();
+    welcome.style.display = "none";
+    saveBtn.hidden = false;
+    // ★ Show first so the hourly chart can measure its width
     document.querySelector(".weather").style.display = "block";
+    renderAll();
 }
 
 // ★ Renders everything from the stored data — also used when switching °C/°F
@@ -768,9 +816,12 @@ function renderAll() {
     const isDay = current.is_day === 1;
 
     document.querySelector(".city").textContent = currentPlace.name;
-    document.querySelector(".temp").textContent = `${Math.round(toUnit(current.temperature_2m))}°${isImperial() ? "F" : "C"}`;
-    document.querySelector(".condition").textContent =
-        `${WEATHER_LABELS[code] || "—"} · Feels like ${formatTemp(current.apparent_temperature)}`;
+    document.getElementById("placeDate").textContent = new Date(current.time)
+        .toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+    document.querySelector(".temp").innerHTML =
+        `${Math.round(toUnit(current.temperature_2m))}<span class="temp-unit">°${isImperial() ? "F" : "C"}</span>`;
+    document.querySelector(".condition").textContent = WEATHER_LABELS[code] || "—";
+    document.querySelector(".feels").textContent = `Feels like ${formatTemp(current.apparent_temperature)}`;
     document.querySelector(".wind").textContent = formatWind(current.wind_speed_10m);
     document.querySelector(".humidity").textContent = `${current.relative_humidity_2m}%`;
 

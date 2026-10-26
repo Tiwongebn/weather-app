@@ -1,74 +1,132 @@
 /* Dedicated responsive breakpoints for consistent layout across devices */
 
-@media (max-width: 900px) {
-    .card {
-        padding: 30px 20px;
-    }
-
-    .details {
-        padding: 0 10px;
-        gap: 12px;
-    }
-
-    .forecast-list {
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-    }
-}
-
-@media (max-width: 560px) {
-    .card {
-        margin-top: 20px;
-        width: 95%;
-        padding: 25px 15px;
+/* Tablet / small laptop: daily forecast moves under the hero */
+@media (max-width: 1100px) {
+    .topbar {
+        grid-template-columns: minmax(0, 1fr) auto;
     }
 
     .search {
-        gap: 8px; /* Use gap instead of margins for consistency */
+        grid-column: 1 / -1;
+        grid-row: 2;
     }
 
-    .search button img {
-        width: 22px; /* Increased from 16px */
+    .hero {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 
-    .search input {
-        font-size: 16px;
-        padding: 10px 16px;
-        height: 52px;
+    .daily {
+        grid-column: 1 / -1;
     }
 
-    .search button {
-        width: 52px;
-        height: 52px;
-        flex-shrink: 0;
+    /* ★ Days side by side instead of a vertical list */
+    .forecast-list {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .forecast-day {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+        gap: 6px;
+        padding: 10px 4px;
+    }
+
+    .forecast-day.today::before {
+        left: 25%;
+        right: 25%;
+        top: 0;
+        bottom: auto;
+        width: auto;
+        height: 3px;
+    }
+
+    .forecast-desc { display: none; }
+
+    .forecast-temp { text-align: center; }
+
+    .forecast-temp span {
+        display: block;
+        margin-left: 0;
+    }
+
+    .extras {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .advice {
+        grid-row: auto;
+    }
+}
+
+/* Phones */
+@media (max-width: 640px) {
+    .app {
+        width: calc(100% - 16px);
+        margin: 8px auto;
+        padding: 18px 16px 24px;
+        border-radius: 24px;
+    }
+
+    .hero {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .hero-visual {
+        min-height: 0;
+    }
+
+    .weather-icon {
+        width: 120px;
     }
 
     .details {
-        flex-direction: row;
-        flex-wrap: wrap;
-       justify-content: space-around;
+        gap: 28px;
+        margin-top: 20px;
     }
 
-     .humidity, .wind { 
-        font-size: 16px;
-     }
-
-     .col {
-        flex-basis: 45%; 
-        margin-bottom: 15px;
-     }
-    .col img {
-         width: 24px;
-         }
-    .forecast {
-         width: 100%;
-         }
-
-    .forecast {
-        width: 100%;
-    }
-
+    /* ★ Back to a vertical list — seven columns are too tight on a phone */
     .forecast-list {
-        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+
+    .forecast-day {
+        grid-template-columns: 30px minmax(0, 1fr) auto;
+        justify-items: stretch;
+        text-align: left;
+        gap: 12px;
+        padding: 8px 10px;
+    }
+
+    .forecast-day.today::before {
+        left: 0;
+        right: auto;
+        top: 22%;
+        bottom: 22%;
+        width: 3px;
+        height: auto;
+    }
+
+    .forecast-desc { display: block; }
+
+    .forecast-temp { text-align: right; }
+
+    .forecast-temp span {
+        display: inline;
+        margin-left: 8px;
+    }
+
+    .hourly,
+    .extras {
+        margin-top: 24px;
+    }
+
+    .extras {
+        gap: 12px;
     }
 
     .advice-grid {
@@ -85,24 +143,20 @@
 }
 
 @media (max-width: 400px) {
-     .card {
-        padding: 20px 12px;
-    }
-
-    .insights {
-        grid-template-columns: 1fr;
+    .pill-btn {
+        padding: 8px 10px;
     }
 
     .status-box {
         gap: 10px;
         padding: 12px 14px;
     }
-    .forecast-list {
-        /* Allow items to wrap or scroll if they don't fit */
-        grid-template-columns: repeat(3, 1fr); 
-        gap: 8px;
+
+    .extras {
+        grid-template-columns: 1fr;
     }
-    .forecast-day {
-        padding: 8px 4px;
+
+    .advice {
+        grid-column: auto;
     }
 }
