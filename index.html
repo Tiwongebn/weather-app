@@ -7,8 +7,8 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600&display=swap">
         <!-- ★ ?v= busts the browser cache when the stylesheets change -->
-        <link rel="stylesheet" href="style.css?v=4">
-        <link rel="stylesheet" href="mediaqueries.css?v=4">
+        <link rel="stylesheet" href="style.css?v=5">
+        <link rel="stylesheet" href="mediaqueries.css?v=5">
         <script>
             // ★ Apply the saved theme before first paint so dark mode doesn't flash
             (function () {
@@ -36,7 +36,10 @@
                     <span class="city">Weather</span>
                     <button type="button" class="save-btn" id="saveBtn" aria-pressed="false" title="Save location" hidden>☆</button>
                 </div>
-                <p class="place-date" id="placeDate"></p>
+                <p class="place-date">
+                    <span id="placeDate"></span>
+                    <button type="button" class="today-btn" id="todayBtn" hidden>← Back to today</button>
+                </p>
             </div>
         </div>
 
@@ -96,11 +99,11 @@
                         <p class="feels"></p>
                         <div class="details">
                             <div class="stat">
-                                <p class="stat-label"><img src="images/wind.png" alt="">Wind</p>
+                                <p class="stat-label"><img src="images/wind.png" alt=""><span class="wind-label">Wind</span></p>
                                 <p class="wind">15 km/h</p>
                             </div>
                             <div class="stat">
-                                <p class="stat-label"><img src="images/humidity.png" alt="">Humidity</p>
+                                <p class="stat-label"><img src="images/humidity.png" alt=""><span class="humidity-label">Humidity</span></p>
                                 <p class="humidity">50%</p>
                             </div>
                         </div>
@@ -166,6 +169,7 @@ const savedList = document.getElementById("savedList");
 const saveBtn = document.getElementById("saveBtn");
 const themeToggle = document.getElementById("themeToggle");
 const unitButtons = document.querySelectorAll(".unit-toggle button");
+const todayBtn = document.getElementById("todayBtn");
 
 // ★ State elements
 const loadingBox = document.getElementById("loadingBox");
@@ -181,6 +185,10 @@ let debounceTimer;
 let currentPlace = null;
 let lastWeather = null;
 let lastAir = null;
+
+// ★ Which forecast day is on screen (0 = today) and the data prepared for it
+let selectedDay = 0;
+let currentView = null;
 
 const GEO_ERRORS = {
     1: {
@@ -521,21 +529,25 @@ function getWeatherIconPath(code, isDay = true) {
 }
 
 // ★ Dawn and dusk are the 45 minutes either side of sunrise and sunset
-function getTimeOfDay(weatherData) {
-    const now = new Date(weatherData.current.time);
-    const sunrise = new Date(weatherData.daily.sunrise[0]);
-    const sunset = new Date(weatherData.daily.sunset[0]);
+function getTimeOfDay(view) {
+    // Other days are shown as their daytime sky
+    if (!view.isToday) return "day";
+
+    const now = new Date(view.time);
+    const sunrise = new Date(view.sunrise);
+    const sunset = new Date(view.sunset);
     const margin = 45 * 60 * 1000;
 
     if (Math.abs(now - sunrise) <= margin) return "dawn";
     if (Math.abs(now - sunset) <= margin) return "dusk";
-    return weatherData.current.is_day === 1 ? "day" : "night";
+    return view.isDay ? "day" : "night";
 }
 
-function updateDynamicBackground(weatherData) {
-    const condition = getCondition(weatherData.current.weather_code);
-    document.body.className = `${getTimeOfDay(weatherData)} wx-${condition}`;
-    renderSky(condition, getTimeOfDay(weatherData));
+function updateDynamicBackground(view) {
+    const condition = getCondition(view.code);
+    const timeOfDay = getTimeOfDay(view);
+    document.body.className = `${timeOfDay} wx-${condition}`;
+    renderSky(condition, timeOfDay);
 }
 
 const random = (min, max) => min + Math.random() * (max - min);
@@ -646,25 +658,44 @@ function renderForecast(weatherData) {
     const { time, weather_code: weathercode, temperature_2m_max: maxTemp, temperature_2m_min: minTemp } = weatherData.daily;
 
     for (let i = 0; i < 7 && i < time.length; i++) {
-        const dayRow = document.createElement("li");
-        dayRow.className = "forecast-day";
-        if (i === 0) dayRow.classList.add("today");
+        const item = document.createElement("li");
+        // ★ Each day is a button so it can be picked with a click, a tap or the keyboard
+        const dayBtn = document.createElement("button");
+        dayBtn.type = "button";
+        dayBtn.className = "forecast-day";
+        if (i === selectedDay) dayBtn.classList.add("selected");
+        dayBtn.setAttribute("aria-pressed", String(i === selectedDay));
 
         const date = new Date(`${time[i]}T00:00:00`);
         const dayLabel = i === 0 ? "Today" : date.toLocaleDateString(undefined, { weekday: "long" });
         const isDay = isDayForForecastDate(time[i], weatherData.hourly);
 
-        dayRow.innerHTML = `
+        dayBtn.innerHTML = `
             <img src="${getWeatherIconPath(weathercode[i], isDay)}" alt="">
-            <div class="forecast-name">
-                <p class="forecast-weekday">${dayLabel}</p>
-                <p class="forecast-desc">${WEATHER_LABELS[weathercode[i]] || ""}</p>
-            </div>
-            <p class="forecast-temp">${formatTemp(maxTemp[i])}<span>${formatTemp(minTemp[i])}</span></p>
+            <span class="forecast-name">
+                <span class="forecast-weekday">${dayLabel}</span>
+                <span class="forecast-desc">${WEATHER_LABELS[weathercode[i]] || ""}</span>
+            </span>
+            <span class="forecast-temp">${formatTemp(maxTemp[i])}<span>${formatTemp(minTemp[i])}</span></span>
         `;
-        forecastList.appendChild(dayRow);
+        dayBtn.addEventListener("click", () => selectDay(i));
+        item.appendChild(dayBtn);
+        forecastList.appendChild(item);
     }
 }
+
+function selectDay(index) {
+    if (index === selectedDay) return;
+    selectedDay = index;
+    renderAll();
+
+    // ★ On phones the forecast list sits below the hero, so bring the details into view
+    if (window.innerWidth <= 640) {
+        document.querySelector(".hero").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+}
+
+todayBtn.addEventListener("click", () => selectDay(0));
 
 // ★ Index of the hourly entry for the location's current hour
 function currentHourIndex(weatherData) {
@@ -690,7 +721,7 @@ function smoothPath(points) {
     return d;
 }
 
-function renderHourlyChart(weatherData, animate = true) {
+function renderHourlyChart(weatherData, view, animate = true) {
     const {
         time,
         temperature_2m: temps,
@@ -699,7 +730,8 @@ function renderHourlyChart(weatherData, animate = true) {
         is_day: isDaySeries,
     } = weatherData.hourly;
 
-    const start = currentHourIndex(weatherData);
+    // ★ Today runs from the current hour; other days show midnight to midnight
+    const start = view.hourStart;
     const count = Math.min(24, time.length - start);
     if (count < 2) {
         hourlyChart.innerHTML = "";
@@ -731,7 +763,8 @@ function renderHourlyChart(weatherData, animate = true) {
 
     const columns = points.map((point, i) => {
         const index = start + i;
-        const hourLabel = i === 0
+        const isNow = view.isToday && i === 0;
+        const hourLabel = isNow
             ? "Now"
             : new Date(time[index]).toLocaleTimeString(undefined, { hour: "numeric" });
         const chance = rainChance[index];
@@ -740,13 +773,13 @@ function renderHourlyChart(weatherData, animate = true) {
         const showHour = step >= 40 || i % 2 === 0;
 
         return `
-            <g class="${i === 0 ? "chart-col now" : "chart-col"}">
+            <g class="${isNow ? "chart-col now" : "chart-col"}">
                 <text class="chart-temp" x="${point.x}" y="${(point.y - 14).toFixed(1)}">${Math.round(values[i])}°</text>
-                <circle class="chart-dot" cx="${point.x}" cy="${point.y.toFixed(1)}" r="${i === 0 ? 6 : 2.5}"></circle>
+                <circle class="chart-dot" cx="${point.x}" cy="${point.y.toFixed(1)}" r="${isNow ? 6 : 2.5}"></circle>
                 <line class="chart-tick" x1="${point.x}" y1="94" x2="${point.x}" y2="99"></line>
                 <image href="${icon}" x="${point.x - 11}" y="103" width="22" height="22"></image>
                 ${chance >= 20 ? `<text class="chart-rain" x="${point.x}" y="137">${chance}%</text>` : ""}
-                ${i === 0 ? `<rect class="chart-now-pill" x="${point.x - 22}" y="140" width="44" height="16" rx="5"></rect>` : ""}
+                ${isNow ? `<rect class="chart-now-pill" x="${point.x - 22}" y="140" width="44" height="16" rx="5"></rect>` : ""}
                 ${showHour ? `<text class="chart-hour" x="${point.x}" y="152">${hourLabel}</text>` : ""}
             </g>
         `;
@@ -755,7 +788,7 @@ function renderHourlyChart(weatherData, animate = true) {
     // ★ fill/stroke are set as attributes too, so the chart still draws sensibly if the CSS is stale
     hourlyChart.innerHTML = `
         <svg class="${animate ? "" : "static"}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"
-             aria-label="Temperature for the next ${count} hours, from ${Math.round(min)}° to ${Math.round(max)}°">
+             aria-label="Temperature for ${view.isToday ? `the next ${count} hours` : view.dayName}, from ${Math.round(min)}° to ${Math.round(max)}°">
             <defs>
                 <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="#fff" stop-opacity="0.18"></stop>
@@ -792,7 +825,7 @@ window.addEventListener("resize", () => {
         // ★ Only redraw (without the draw-in animation) when the chart's width actually changed
         const svg = hourlyChart.querySelector("svg");
         if (!lastWeather || !svg || hourlyChart.dataset.width === String(hourlyChart.clientWidth)) return;
-        renderHourlyChart(lastWeather, false);
+        renderHourlyChart(lastWeather, currentView, false);
     }, 150);
 });
 
@@ -800,6 +833,7 @@ function updateUI(place, weatherData, airData) {
     currentPlace = { name: place.name, latitude: place.latitude, longitude: place.longitude };
     lastWeather = weatherData;
     lastAir = airData;
+    selectedDay = 0; // ★ A new place always opens on today
 
     // ★ Remember the last place so it loads on the next visit
     prefs.last = currentPlace;
@@ -812,29 +846,100 @@ function updateUI(place, weatherData, airData) {
     renderAll();
 }
 
-// ★ Renders everything from the stored data — also used when switching °C/°F
+// ★ Highest reading of an hourly series within one day (null when there's no data)
+function dayMax(times, series, date) {
+    const values = (series || []).filter((v, i) => v != null && times[i].startsWith(date));
+    return values.length ? Math.max(...values) : null;
+}
+
+// ★ Everything the dashboard shows for one day: live conditions for today,
+//   and for the days ahead their highs, a midday snapshot and the daily peaks
+function getDayView(weatherData, airData, dayIndex) {
+    const { current, hourly, daily } = weatherData;
+    const date = daily.time[dayIndex];
+    const isToday = dayIndex === 0;
+    const hourIndex = (prefix) => Math.max(0, hourly.time.findIndex((t) => t.startsWith(prefix)));
+
+    const view = {
+        isToday,
+        date,
+        dayName: isToday ? "today" : new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long" }),
+        high: daily.temperature_2m_max[dayIndex],
+        low: daily.temperature_2m_min[dayIndex],
+        sunrise: daily.sunrise[dayIndex],
+        sunset: daily.sunset[dayIndex],
+        uvMax: daily.uv_index_max?.[dayIndex],
+    };
+
+    if (isToday) {
+        const now = currentHourIndex(weatherData);
+        Object.assign(view, {
+            time: current.time,
+            temperature: current.temperature_2m,
+            apparent: current.apparent_temperature,
+            humidity: current.relative_humidity_2m,
+            wind: current.wind_speed_10m,
+            code: current.weather_code,
+            isDay: current.is_day === 1,
+            uv: current.uv_index ?? 0,
+            hourStart: now,
+            adviceStart: now, // ★ Tips look at the next 12 hours
+            air: airData?.current || null,
+        });
+    } else {
+        const noon = hourIndex(`${date}T12`);
+        let air = null;
+        if (airData?.hourly) {
+            const { time } = airData.hourly;
+            air = { us_aqi: dayMax(time, airData.hourly.us_aqi, date), pm2_5: dayMax(time, airData.hourly.pm2_5, date) };
+            POLLEN_TYPES.forEach((type) => { air[type.key] = dayMax(time, airData.hourly[type.key], date); });
+        }
+        Object.assign(view, {
+            time: `${date}T12:00`,
+            temperature: view.high,
+            apparent: hourly.apparent_temperature?.[noon] ?? view.high,
+            humidity: hourly.relativehumidity_2m?.[noon],
+            wind: dayMax(hourly.time, hourly.wind_speed_10m, date) ?? 0,
+            code: daily.weather_code[dayIndex],
+            isDay: true,
+            uv: view.uvMax ?? 0,
+            hourStart: hourIndex(`${date}T00`),
+            adviceStart: hourIndex(`${date}T08`), // ★ Tips look at the daytime, 8am to 8pm
+            air,
+        });
+    }
+    return view;
+}
+
+// ★ Renders everything from the stored data — also used when switching °C/°F or picking a day
 function renderAll() {
     const weatherData = lastWeather;
-    const current = weatherData.current;
-    const code = current.weather_code;
-    const isDay = current.is_day === 1;
+    const view = getDayView(weatherData, lastAir, selectedDay);
+    currentView = view;
 
     document.querySelector(".city").textContent = currentPlace.name;
-    document.getElementById("placeDate").textContent = new Date(current.time)
-        .toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+    // ★ Shorter date on phones so it fits beside the "Back to today" button
+    const dateStyle = window.innerWidth <= 640 ? "short" : "long";
+    document.getElementById("placeDate").textContent = new Date(`${view.date}T12:00`)
+        .toLocaleDateString(undefined, { weekday: dateStyle, month: dateStyle, day: "numeric" });
+    todayBtn.hidden = view.isToday;
     document.querySelector(".temp").innerHTML =
-        `${Math.round(toUnit(current.temperature_2m))}<span class="temp-unit">°${isImperial() ? "F" : "C"}</span>`;
-    document.querySelector(".condition").textContent = WEATHER_LABELS[code] || "—";
-    document.querySelector(".feels").textContent = `Feels like ${formatTemp(current.apparent_temperature)}`;
-    document.querySelector(".wind").textContent = formatWind(current.wind_speed_10m);
-    document.querySelector(".humidity").textContent = `${current.relative_humidity_2m}%`;
+        `${Math.round(toUnit(view.temperature))}<span class="temp-unit">°${isImperial() ? "F" : "C"}</span>`;
+    document.querySelector(".condition").textContent = WEATHER_LABELS[view.code] || "—";
+    document.querySelector(".feels").textContent = view.isToday
+        ? `Feels like ${formatTemp(view.apparent)}`
+        : `High ${formatTemp(view.high)} · Low ${formatTemp(view.low)}`;
+    document.querySelector(".wind").textContent = formatWind(view.wind);
+    document.querySelector(".humidity").textContent = view.humidity != null ? `${view.humidity}%` : "—";
+    document.querySelector(".wind-label").textContent = view.isToday ? "Wind" : "Max wind";
+    document.querySelector(".humidity-label").textContent = view.isToday ? "Humidity" : "Humidity at noon";
 
-    weatherIcon.src = getWeatherIconPath(code, isDay);
-    updateDynamicBackground(weatherData);
-    renderAdvice(weatherData, lastAir);
-    renderHourlyChart(weatherData);
+    weatherIcon.src = getWeatherIconPath(view.code, view.isDay);
+    updateDynamicBackground(view);
+    renderAdvice(weatherData, view);
+    renderHourlyChart(weatherData, view);
     renderForecast(weatherData);
-    renderInsights(weatherData, lastAir);
+    renderInsights(view);
     updateSaveButton();
     renderSavedList();
 }
@@ -843,17 +948,17 @@ function renderAll() {
    ★ What to wear / do
    ========================================================= */
 
-function buildAdvice(weatherData, airData) {
-    const current = weatherData.current;
-    const condition = getCondition(current.weather_code);
-    const feels = current.apparent_temperature;
-    const wind = current.wind_speed_10m;
-    const isDay = current.is_day === 1;
-    const uvMax = weatherData.daily.uv_index_max?.[0] ?? 0;
-    const aqi = airData?.current?.us_aqi;
+function buildAdvice(weatherData, view) {
+    const condition = getCondition(view.code);
+    const feels = view.apparent;
+    const wind = view.wind;
+    const isDay = view.isDay;
+    const uvMax = view.uvMax ?? 0;
+    const aqi = view.air?.us_aqi;
+    const span = view.isToday ? "over the next 12h" : "during the day";
 
-    // ★ Look at the next 12 hours, not just this moment
-    const start = currentHourIndex(weatherData);
+    // ★ Look at a 12-hour window, not just one moment
+    const start = view.adviceStart;
     const next = (series) => (series || []).slice(start, start + 12).filter((v) => v != null);
     const nextTemps = next(weatherData.hourly.temperature_2m);
     const nextRain = Math.max(0, ...next(weatherData.hourly.precipitation_probability));
@@ -871,7 +976,7 @@ function buildAdvice(weatherData, airData) {
     else wear.push(["🩳", "Light, breathable clothes"]);
 
     if (swing >= 8) {
-        wear.push(["🧅", `Dress in layers: ${formatTemp(Math.min(...nextTemps))} to ${formatTemp(Math.max(...nextTemps))} over the next 12h`]);
+        wear.push(["🧅", `Dress in layers: ${formatTemp(Math.min(...nextTemps))} to ${formatTemp(Math.max(...nextTemps))} ${span}`]);
     }
     if (wet && condition !== "snow") wear.push(["☔", `Take an umbrella or a rain jacket (${nextRain}% chance of rain)`]);
     else if (nextRain >= 30 && condition !== "snow") wear.push(["🌂", `Pack a small umbrella, just in case (${nextRain}%)`]);
@@ -916,8 +1021,8 @@ function fillAdviceList(listEl, items) {
     });
 }
 
-function renderAdvice(weatherData, airData) {
-    const { wear, todo } = buildAdvice(weatherData, airData);
+function renderAdvice(weatherData, view) {
+    const { wear, todo } = buildAdvice(weatherData, view);
     fillAdviceList(document.getElementById("wearList"), wear);
     fillAdviceList(document.getElementById("doList"), todo);
 }
@@ -995,12 +1100,12 @@ function formatDuration(ms) {
     return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-function renderInsights(weatherData, airData) {
+function renderInsights(view) {
     const aqiCard = document.getElementById("aqiCard");
     const uvCard = document.getElementById("uvCard");
     const pollenCard = document.getElementById("pollenCard");
     const sunCard = document.getElementById("sunCard");
-    const air = airData?.current;
+    const air = view.air;
 
     // Air quality
     if (air?.us_aqi != null) {
@@ -1009,16 +1114,19 @@ function renderInsights(weatherData, airData) {
         aqiCard.innerHTML = cardHTML("Air Quality", Math.round(air.us_aqi), level.label, level.color,
             meter(air.us_aqi / 300, level.color) + pm);
     } else {
-        aqiCard.innerHTML = unavailableHTML("Air Quality", "Air quality data isn't available right now.");
+        aqiCard.innerHTML = unavailableHTML("Air Quality", view.isToday
+            ? "Air quality data isn't available right now."
+            : "No air quality forecast for this day.");
     }
 
-    // UV index
-    const uvNow = weatherData.current.uv_index ?? 0;
-    const uvMax = weatherData.daily.uv_index_max?.[0];
+    // UV index — the live reading today, the daily peak for other days
+    const uvNow = view.uv;
     const uvLevel = levelFor(UV_LEVELS, uvNow);
+    const uvSub = view.isToday
+        ? (view.uvMax != null ? `Peak today · ${Math.round(view.uvMax)}` : "")
+        : "Peak for the day";
     uvCard.innerHTML = cardHTML("UV Index", Math.round(uvNow), uvLevel.label, uvLevel.color,
-        meter(uvNow / 11, uvLevel.color) +
-        (uvMax != null ? `<p class="insight-sub">Peak today · ${Math.round(uvMax)}</p>` : ""));
+        meter(uvNow / 11, uvLevel.color) + (uvSub ? `<p class="insight-sub">${uvSub}</p>` : ""));
 
     // Pollen — Open-Meteo only covers Europe, so expect gaps elsewhere
     const readings = POLLEN_TYPES
@@ -1039,21 +1147,25 @@ function renderInsights(weatherData, airData) {
         pollenCard.innerHTML = cardHTML("Pollen", level.label, "Allergy risk",
             level.color, `<p class="insight-sub">${sub}</p>`);
     } else {
-        pollenCard.innerHTML = unavailableHTML("Pollen", "Pollen forecasts are only available in Europe.");
+        pollenCard.innerHTML = unavailableHTML("Pollen", view.isToday
+            ? "Pollen forecasts are only available in Europe."
+            : "No pollen forecast for this day (Europe only, up to 4 days ahead).");
     }
 
     // Sunrise / sunset with the sun's position along its arc
-    const now = new Date(weatherData.current.time);
-    const sunrise = new Date(weatherData.daily.sunrise[0]);
-    const sunset = new Date(weatherData.daily.sunset[0]);
+    const now = new Date(view.time);
+    const sunrise = new Date(view.sunrise);
+    const sunset = new Date(view.sunset);
     const progress = (now - sunrise) / (sunset - sunrise);
-    const isUp = progress >= 0 && progress <= 1;
+    // ★ Only today has a live sun position
+    const isUp = view.isToday && progress >= 0 && progress <= 1;
     const angle = Math.PI * (1 - Math.min(Math.max(progress, 0), 1));
     const sunX = 100 + 90 * Math.cos(angle);
     const sunY = 90 - 90 * Math.sin(angle);
 
     let nextEvent;
-    if (now < sunrise) nextEvent = `Sunrise in ${formatDuration(sunrise - now)}`;
+    if (!view.isToday) nextEvent = `Sun up for ${formatDuration(sunset - sunrise)}`;
+    else if (now < sunrise) nextEvent = `Sunrise in ${formatDuration(sunrise - now)}`;
     else if (isUp) nextEvent = `Sunset in ${formatDuration(sunset - now)}`;
     else nextEvent = "The sun has set for today";
 
@@ -1066,10 +1178,10 @@ function renderInsights(weatherData, airData) {
             <line x1="0" y1="90" x2="200" y2="90" class="arc-horizon"></line>
         </svg>
         <div class="sun-times">
-            <span>↑ ${formatClock(weatherData.daily.sunrise[0])}</span>
-            <span>↓ ${formatClock(weatherData.daily.sunset[0])}</span>
+            <span>↑ ${formatClock(view.sunrise)}</span>
+            <span>↓ ${formatClock(view.sunset)}</span>
         </div>
-        <p class="insight-sub">${nextEvent} · ${formatDuration(sunset - sunrise)} of daylight</p>
+        <p class="insight-sub">${view.isToday ? `${nextEvent} · ${formatDuration(sunset - sunrise)} of daylight` : nextEvent}</p>
     `;
 }
 
@@ -1095,7 +1207,7 @@ async function getWeather(lat, lon) {
         latitude: lat,
         longitude: lon,
         current: "temperature_2m,apparent_temperature,relative_humidity_2m,is_day,weather_code,wind_speed_10m,uv_index",
-        hourly: "temperature_2m,relativehumidity_2m,precipitation_probability,weather_code,is_day",
+        hourly: "temperature_2m,apparent_temperature,relativehumidity_2m,precipitation_probability,weather_code,is_day,wind_speed_10m",
         daily: "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max",
         timezone: "auto",
     });
@@ -1110,6 +1222,9 @@ async function getAirQuality(lat, lon) {
         latitude: lat,
         longitude: lon,
         current: "us_aqi,pm2_5," + POLLEN_TYPES.map((type) => type.key).join(","),
+        // ★ Hourly forecasts let the other days show their air quality and pollen too
+        hourly: "us_aqi,pm2_5," + POLLEN_TYPES.map((type) => type.key).join(","),
+        forecast_days: 7,
         timezone: "auto",
     });
     const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params}`);
