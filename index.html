@@ -5,9 +5,33 @@
         <title>Weather App</title>
         <link rel="stylesheet" href="style.css">
         <link rel="stylesheet" href="mediaqueries.css">
+        <script>
+            // ★ Apply the saved theme before first paint so dark mode doesn't flash
+            (function () {
+                let theme = "system";
+                try {
+                    theme = (JSON.parse(localStorage.getItem("weatherApp.prefs")) || {}).theme || "system";
+                } catch {}
+                if (theme === "system") {
+                    theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+                }
+                document.documentElement.dataset.theme = theme;
+            })();
+        </script>
     </head>
     <body>
+       <!-- ★ Animated sky layer: rain, snow, clouds, stars, sun… built from the current conditions -->
+       <div class="sky" id="sky" aria-hidden="true"></div>
+
        <div class="card">
+    <div class="topbar">
+        <div class="unit-toggle" role="group" aria-label="Temperature unit">
+            <button type="button" data-unit="metric" aria-pressed="true">°C</button>
+            <button type="button" data-unit="imperial" aria-pressed="false">°F</button>
+        </div>
+        <button type="button" class="pill-btn" id="themeToggle" title="Change theme"></button>
+    </div>
+
     <div class="search">
         <div class="input-wrap">
             <input type="text" placeholder="Enter City Name" spellcheck="false">
@@ -17,8 +41,11 @@
         <button id="locationBtn" title="Use my location" aria-label="Use my location">
             <img src="images/location.png" alt="Use my location">
         </button>
-    
+
     </div>
+
+    <!-- ★ Saved locations -->
+    <div class="saved-list" id="savedList"></div>
 
             <!-- ★ Loading state -->
 <div class="status-box loading-box" id="loadingBox">
@@ -38,11 +65,15 @@
   </div>
   <button class="dismiss-btn" id="dismissError" aria-label="Dismiss error">×</button>
 </div>
-        
+
             <div class="weather">
                  <img src="images/rain.png" class="weather-icon" alt="Weather icon">
                 <h1 class="temp">22°C</h1>
-                <h2 class="city">Johannesburg</h2>
+                <p class="condition"></p>
+                <div class="city-row">
+                    <h2 class="city">Johannesburg</h2>
+                    <button type="button" class="save-btn" id="saveBtn" aria-pressed="false" title="Save location">☆</button>
+                </div>
                 <div class="details">
                  <div class="col">
                         <img src="images/humidity.png" alt="Humidity">
@@ -58,12 +89,43 @@
                             <p>Wind Speed</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- ★ What to wear / do -->
+                <section class="advice panel">
+                    <h3>What to wear &amp; do</h3>
+                    <div class="advice-grid">
+                        <div>
+                            <h4>Wear</h4>
+                            <ul class="advice-list" id="wearList"></ul>
+                        </div>
+                        <div>
+                            <h4>Do</h4>
+                            <ul class="advice-list" id="doList"></ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ★ Hourly temperature chart -->
+                <section class="hourly">
+                    <h3>Next 24 Hours</h3>
+                    <div class="hourly-chart" id="hourlyChart"></div>
+                </section>
+
                       <div class="forecast">
                     <h3>5-Day Forecast</h3>
                     <div class="forecast-list"></div>
                 </div>
-                </div>
-            </div>  
+
+                <!-- ★ Air quality, UV, pollen and sun cards -->
+                <section class="insights">
+                    <div class="insight-card" id="aqiCard"></div>
+                    <div class="insight-card" id="uvCard"></div>
+                    <div class="insight-card" id="pollenCard"></div>
+                    <div class="insight-card" id="sunCard"></div>
+                </section>
+            </div>
+       </div>
        <script>
 const searchBox = document.querySelector(".search input");
 const searchBtn = document.querySelector(".search button");
@@ -72,6 +134,12 @@ const weatherIcon = document.querySelector(".weather-icon");
 const suggestionsList = document.getElementById("suggestions");
 const card = document.querySelector(".card");
 const forecastList = document.querySelector(".forecast-list");
+const sky = document.getElementById("sky");
+const hourlyChart = document.getElementById("hourlyChart");
+const savedList = document.getElementById("savedList");
+const saveBtn = document.getElementById("saveBtn");
+const themeToggle = document.getElementById("themeToggle");
+const unitButtons = document.querySelectorAll(".unit-toggle button");
 
 // ★ State elements
 const loadingBox = document.getElementById("loadingBox");
@@ -82,6 +150,11 @@ const errorMsg = document.getElementById("errorMsg");
 const dismissError = document.getElementById("dismissError");
 
 let debounceTimer;
+
+// ★ What's currently on screen, kept so a unit change can re-render without refetching
+let currentPlace = null;
+let lastWeather = null;
+let lastAir = null;
 
 const GEO_ERRORS = {
     1: {
@@ -97,6 +170,156 @@ const GEO_ERRORS = {
         message: "It took too long to get your location. Try again or search manually."
     },
 };
+
+const WEATHER_LABELS = {
+    0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+    45: "Fog", 48: "Freezing fog",
+    51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle", 56: "Freezing drizzle", 57: "Freezing drizzle",
+    61: "Light rain", 63: "Rain", 65: "Heavy rain", 66: "Freezing rain", 67: "Freezing rain",
+    71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains",
+    80: "Rain showers", 81: "Rain showers", 82: "Heavy rain showers",
+    85: "Snow showers", 86: "Heavy snow showers",
+    95: "Thunderstorm", 96: "Thunderstorm with hail", 99: "Thunderstorm with hail",
+};
+
+/* =========================================================
+   ★ Preferences (units, theme, saved locations, last place)
+   ========================================================= */
+
+const PREFS_KEY = "weatherApp.prefs";
+const MAX_SAVED = 8;
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+const prefs = loadPrefs();
+
+function loadPrefs() {
+    const defaults = { units: "metric", theme: "system", saved: [], last: null };
+    try {
+        const stored = JSON.parse(localStorage.getItem(PREFS_KEY)) || {};
+        return {
+            ...defaults,
+            ...stored,
+            saved: Array.isArray(stored.saved) ? stored.saved : [],
+        };
+    } catch {
+        // ★ Private mode or corrupted storage — fall back to defaults
+        return defaults;
+    }
+}
+
+function savePrefs() {
+    try {
+        localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch {
+        // Storage unavailable — preferences just won't persist
+    }
+}
+
+const THEME_LABELS = { system: "🖥 Auto", light: "☀️ Light", dark: "🌙 Dark" };
+const THEME_ORDER = ["system", "light", "dark"];
+
+function applyTheme() {
+    const resolved = prefs.theme === "system" ? (darkQuery.matches ? "dark" : "light") : prefs.theme;
+    document.documentElement.dataset.theme = resolved;
+    themeToggle.textContent = THEME_LABELS[prefs.theme];
+    themeToggle.setAttribute("aria-label", `Theme: ${prefs.theme}. Click to change.`);
+}
+
+themeToggle.addEventListener("click", () => {
+    prefs.theme = THEME_ORDER[(THEME_ORDER.indexOf(prefs.theme) + 1) % THEME_ORDER.length];
+    savePrefs();
+    applyTheme();
+});
+
+darkQuery.addEventListener("change", () => {
+    if (prefs.theme === "system") applyTheme();
+});
+
+function applyUnitButtons() {
+    unitButtons.forEach((btn) => {
+        btn.setAttribute("aria-pressed", String(btn.dataset.unit === prefs.units));
+    });
+}
+
+unitButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+        if (prefs.units === btn.dataset.unit) return;
+        prefs.units = btn.dataset.unit;
+        savePrefs();
+        applyUnitButtons();
+        if (lastWeather) renderAll();
+    });
+});
+
+// ★ Open-Meteo always returns °C and km/h; we convert on display
+const isImperial = () => prefs.units === "imperial";
+const toUnit = (celsius) => (isImperial() ? celsius * 9 / 5 + 32 : celsius);
+const formatTemp = (celsius) => `${Math.round(toUnit(celsius))}°`;
+const formatWind = (kmh) => (isImperial() ? `${Math.round(kmh * 0.621371)} mph` : `${Math.round(kmh)} km/h`);
+
+function samePlace(a, b) {
+    return !!a && !!b &&
+        Math.abs(a.latitude - b.latitude) < 0.01 &&
+        Math.abs(a.longitude - b.longitude) < 0.01;
+}
+
+function isSaved(place) {
+    return prefs.saved.some((p) => samePlace(p, place));
+}
+
+function renderSavedList() {
+    savedList.innerHTML = "";
+    savedList.style.display = prefs.saved.length ? "flex" : "none";
+
+    prefs.saved.forEach((place) => {
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        if (samePlace(place, currentPlace)) chip.classList.add("active");
+
+        const nameBtn = document.createElement("button");
+        nameBtn.type = "button";
+        nameBtn.className = "chip-name";
+        nameBtn.textContent = place.name;
+        nameBtn.addEventListener("click", () => checkWeather(place));
+
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "chip-remove";
+        removeBtn.textContent = "×";
+        removeBtn.setAttribute("aria-label", `Remove ${place.name}`);
+        removeBtn.addEventListener("click", () => {
+            prefs.saved = prefs.saved.filter((p) => !samePlace(p, place));
+            savePrefs();
+            renderSavedList();
+            updateSaveButton();
+        });
+
+        chip.append(nameBtn, removeBtn);
+        savedList.appendChild(chip);
+    });
+}
+
+function updateSaveButton() {
+    const saved = isSaved(currentPlace);
+    saveBtn.textContent = saved ? "★" : "☆";
+    saveBtn.setAttribute("aria-pressed", String(saved));
+    saveBtn.title = saved ? "Remove from saved locations" : "Save location";
+}
+
+saveBtn.addEventListener("click", () => {
+    if (!currentPlace) return;
+    if (isSaved(currentPlace)) {
+        prefs.saved = prefs.saved.filter((p) => !samePlace(p, currentPlace));
+    } else {
+        prefs.saved = [currentPlace, ...prefs.saved].slice(0, MAX_SAVED);
+    }
+    savePrefs();
+    renderSavedList();
+    updateSaveButton();
+});
+
+/* =========================================================
+   Search, geolocation and status states
+   ========================================================= */
 
 locationBtn.addEventListener("click", () => {
     // ★ Check API availability first — some browsers or HTTP contexts block it
@@ -118,11 +341,6 @@ locationBtn.addEventListener("click", () => {
             const { latitude, longitude } = position.coords;
 
             try {
-                // ★ Reverse geocode to get a readable city name
-                const res = await fetch(
-                    `https://geocoding-api.open-meteo.com/v1/search?name=&latitude=${latitude}&longitude=${longitude}&count=1`
-                );
-
                 // Open-Meteo's geocoding API doesn't support reverse lookup,
                 // so we use a separate free reverse geocode endpoint
                 const geoRes = await fetch(
@@ -138,9 +356,7 @@ locationBtn.addEventListener("click", () => {
                     geoData.address.county ||
                     "Your location";
 
-                const weatherData = await getWeather(latitude, longitude);
-                hideLoading();
-                updateUI(cityName, weatherData);
+                await loadPlace({ name: cityName, latitude, longitude });
 
             } catch {
                 showError(
@@ -212,7 +428,7 @@ searchBox.addEventListener("input", () => {
 
     debounceTimer = setTimeout(async () => {
         try {
-            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=5`);
+            const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5`);
             const data = await res.json();
             if (data.results) displaySuggestions(data.results);
         } catch {
@@ -237,24 +453,32 @@ function displaySuggestions(cities) {
     });
 }
 
-function getWeatherTheme(code) {
-    if (code === 0) return "clear";
+/* =========================================================
+   Conditions, icons and the animated sky
+   ========================================================= */
+
+// ★ Groups WMO weather codes into the conditions the UI cares about
+function getCondition(code) {
+    if (code <= 1) return "clear";
     if (code <= 3) return "clouds";
-    if (code <= 67) return "rain";
-    if (code <= 77) return "snow";
-    return "mist";
+    if (code === 45 || code === 48) return "fog";
+    if (code <= 57) return "drizzle";
+    if (code <= 67 || (code >= 80 && code <= 82)) return "rain";
+    if (code <= 77 || code === 85 || code === 86) return "snow";
+    if (code >= 95) return "thunderstorm";
+    return "clouds";
+}
+
+function getWeatherTheme(code) {
+    const condition = getCondition(code);
+    if (condition === "drizzle" || condition === "thunderstorm") return "rain";
+    if (condition === "fog") return "mist";
+    return condition;
 }
 
 // ★ Now accepts isDay as a second parameter
 function getWeatherIconPath(code, isDay = true) {
-    const condition =
-        code === 0 ? "clear" :
-        code <= 3  ? "clouds" :
-        code <= 57 ? "drizzle" :
-        code <= 67 ? "rain" :
-        code <= 77 ? "snow" :
-         code <= 99 ? "thunderstorm" :
-                     "mist";
+    const condition = getCondition(code);
 
     if (!isDay) {
         const nightIconMap = {
@@ -269,22 +493,130 @@ function getWeatherIconPath(code, isDay = true) {
         if (nightIconMap[condition]) return nightIconMap[condition];
     }
 
+    // ★ There's no daytime thunderstorm icon, so reuse rain
+    if (condition === "thunderstorm") return "images/rain.png";
+    if (condition === "fog") return "images/mist.png";
     return `images/${condition}.png`;
 }
 
-function updateDynamicBackground(isDay, code) {
-    const periodClass = isDay ? "day" : "night";
-    const weatherClass = getWeatherTheme(code);
+// ★ Dawn and dusk are the 45 minutes either side of sunrise and sunset
+function getTimeOfDay(weatherData) {
+    const now = new Date(weatherData.current.time);
+    const sunrise = new Date(weatherData.daily.sunrise[0]);
+    const sunset = new Date(weatherData.daily.sunset[0]);
+    const margin = 45 * 60 * 1000;
 
-    document.body.classList.remove("day", "night");
-    document.body.classList.add(periodClass);
+    if (Math.abs(now - sunrise) <= margin) return "dawn";
+    if (Math.abs(now - sunset) <= margin) return "dusk";
+    return weatherData.current.is_day === 1 ? "day" : "night";
+}
+
+function updateDynamicBackground(weatherData) {
+    const { weather_code: code, is_day } = weatherData.current;
+    const periodClass = is_day === 1 ? "day" : "night";
+    const weatherClass = getWeatherTheme(code);
+    const timeOfDay = getTimeOfDay(weatherData);
+    const condition = getCondition(code);
+
+    document.body.className = `${timeOfDay} wx-${condition}`;
 
     card.classList.remove(
         "day-clear", "day-clouds", "day-rain", "day-snow", "day-mist",
         "night-clear", "night-clouds", "night-rain", "night-snow", "night-mist"
     );
     card.classList.add(`${periodClass}-${weatherClass}`);
+
+    renderSky(condition, timeOfDay);
 }
+
+const random = (min, max) => min + Math.random() * (max - min);
+
+// ★ Creates one sky element, positioned with CSS custom properties
+function spawn(className, vars) {
+    const el = document.createElement("div");
+    el.className = className;
+    Object.entries(vars).forEach(([key, value]) => el.style.setProperty(`--${key}`, value));
+    sky.appendChild(el);
+    return el;
+}
+
+function renderSky(condition, timeOfDay) {
+    sky.innerHTML = "";
+    const isNight = timeOfDay === "night";
+    const isClearish = condition === "clear" || condition === "clouds";
+
+    if (isClearish && isNight) {
+        const starCount = condition === "clear" ? 80 : 30;
+        for (let i = 0; i < starCount; i++) {
+            spawn("star", {
+                x: `${random(0, 100)}%`,
+                y: `${random(0, 75)}%`,
+                s: `${random(1, 3)}px`,
+                d: `${random(2, 5)}s`,
+                delay: `${random(-5, 0)}s`,
+            });
+        }
+        spawn("moon", {});
+    } else if (isClearish) {
+        spawn(timeOfDay === "day" ? "sun" : "sun low", {});
+    }
+
+    if (condition !== "clear") {
+        const stormy = ["rain", "drizzle", "thunderstorm"].includes(condition);
+        const cloudCount = condition === "fog" ? 2 : stormy ? 7 : 5;
+        for (let i = 0; i < cloudCount; i++) {
+            const duration = random(70, 140);
+            spawn(stormy ? "cloud dark" : "cloud", {
+                y: `${random(-4, 35)}%`,
+                w: `${random(180, 380)}px`,
+                o: random(0.35, 0.7).toFixed(2),
+                d: `${duration}s`,
+                // ★ Negative delay starts each cloud part-way across the sky
+                delay: `${-random(0, duration)}s`,
+            });
+        }
+    }
+
+    if (["rain", "drizzle", "thunderstorm"].includes(condition)) {
+        const dropCount = condition === "drizzle" ? 45 : 110;
+        for (let i = 0; i < dropCount; i++) {
+            spawn("drop", {
+                x: `${random(-5, 105)}%`,
+                h: `${condition === "drizzle" ? random(25, 45) : random(55, 95)}px`,
+                d: `${condition === "drizzle" ? random(1.2, 1.8) : random(0.55, 0.9)}s`,
+                delay: `${random(-2, 0)}s`,
+            });
+        }
+    }
+
+    if (condition === "thunderstorm") spawn("flash", {});
+
+    if (condition === "snow") {
+        for (let i = 0; i < 70; i++) {
+            spawn("flake", {
+                x: `${random(0, 100)}%`,
+                s: `${random(3, 8)}px`,
+                d: `${random(7, 14)}s`,
+                delay: `${random(-14, 0)}s`,
+                sway: `${random(-40, 40)}px`,
+            });
+        }
+    }
+
+    if (condition === "fog") {
+        for (let i = 0; i < 5; i++) {
+            spawn("fog", {
+                y: `${10 + i * 18}%`,
+                d: `${random(18, 32)}s`,
+                delay: `${random(-20, 0)}s`,
+            });
+        }
+    }
+}
+
+/* =========================================================
+   Forecast, hourly chart and the main weather card
+   ========================================================= */
 
 function isDayForForecastDate(dateStr, hourlyData) {
     const { time = [], is_day: isDaySeries = [] } = hourlyData || {};
@@ -302,7 +634,7 @@ function isDayForForecastDate(dateStr, hourlyData) {
 
 function renderForecast(weatherData) {
     forecastList.innerHTML = "";
-    const { time, weathercode, temperature_2m_max: maxTemp, temperature_2m_min: minTemp } = weatherData.daily;
+    const { time, weather_code: weathercode, temperature_2m_max: maxTemp, temperature_2m_min: minTemp } = weatherData.daily;
 
     for (let i = 0; i < 5 && i < time.length; i++) {
         const dayCard = document.createElement("div");
@@ -315,29 +647,380 @@ function renderForecast(weatherData) {
         dayCard.innerHTML = `
             <p class="forecast-weekday">${dayLabel}</p>
             <img src="${getWeatherIconPath(weathercode[i], isDay)}" alt="Forecast icon">
-            <p class="forecast-temp">${Math.round(maxTemp[i])}° / ${Math.round(minTemp[i])}°</p>
+            <p class="forecast-temp">${formatTemp(maxTemp[i])} / ${formatTemp(minTemp[i])}</p>
         `;
         forecastList.appendChild(dayCard);
     }
 }
 
-function updateUI(cityName, weatherData) {
-    const current = weatherData.current_weather;
-    const humidity = weatherData.hourly.relativehumidity_2m[0];
-    const code = current.weathercode;
-    const isDay = current.is_day === 1;
+// ★ Index of the hourly entry for the location's current hour
+function currentHourIndex(weatherData) {
+    const hourKey = weatherData.current.time.slice(0, 13);
+    const index = weatherData.hourly.time.findIndex((t) => t.slice(0, 13) === hourKey);
+    return index >= 0 ? index : 0;
+}
 
-    document.querySelector(".city").textContent = cityName;
-    document.querySelector(".temp").textContent = `${Math.round(current.temperature)}°C`;
-    document.querySelector(".wind").textContent = `${current.windspeed} km/h`;
-    document.querySelector(".humidity").textContent = `${humidity}%`;
+// ★ Catmull-Rom spline → cubic Bézier, so the line passes smoothly through every point
+function smoothPath(points) {
+    let d = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i - 1] || points[i];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[i + 2] || p2;
+        const c1x = p1.x + (p2.x - p0.x) / 6;
+        const c1y = p1.y + (p2.y - p0.y) / 6;
+        const c2x = p2.x - (p3.x - p1.x) / 6;
+        const c2y = p2.y - (p3.y - p1.y) / 6;
+        d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x} ${p2.y.toFixed(1)}`;
+    }
+    return d;
+}
 
-    weatherIcon.src = getWeatherIconPath(code, isDay);
-    updateDynamicBackground(isDay, code);
-    renderForecast(weatherData);
+function renderHourlyChart(weatherData) {
+    const {
+        time,
+        temperature_2m: temps,
+        precipitation_probability: rainChance = [],
+        weather_code: codes,
+        is_day: isDaySeries,
+    } = weatherData.hourly;
 
+    const start = currentHourIndex(weatherData);
+    const count = Math.min(24, time.length - start);
+    if (count < 2) {
+        hourlyChart.innerHTML = "";
+        return;
+    }
+
+    const step = 58;
+    const padX = 30;
+    const height = 182;
+    const lineTop = 34;
+    const lineBottom = 100;
+    const width = padX * 2 + (count - 1) * step;
+
+    const values = temps.slice(start, start + count).map(toUnit);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+
+    const points = values.map((value, i) => ({
+        x: padX + i * step,
+        y: lineBottom - ((value - min) / range) * (lineBottom - lineTop),
+    }));
+
+    const line = smoothPath(points);
+    const area = `${line} L ${points[points.length - 1].x} ${height - 66} L ${points[0].x} ${height - 66} Z`;
+
+    const columns = points.map((point, i) => {
+        const index = start + i;
+        const hourLabel = i === 0
+            ? "Now"
+            : new Date(time[index]).toLocaleTimeString(undefined, { hour: "numeric" });
+        const chance = rainChance[index];
+        const icon = getWeatherIconPath(codes[index], isDaySeries[index] === 1);
+
+        return `
+            <text class="chart-temp" x="${point.x}" y="${(point.y - 12).toFixed(1)}">${Math.round(values[i])}°</text>
+            <circle class="chart-dot" cx="${point.x}" cy="${point.y.toFixed(1)}" r="${i === 0 ? 5 : 3}"></circle>
+            <image href="${icon}" x="${point.x - 12}" y="120" width="24" height="24"></image>
+            ${chance >= 20 ? `<text class="chart-rain" x="${point.x}" y="158">${chance}%</text>` : ""}
+            <text class="chart-hour" x="${point.x}" y="176">${hourLabel}</text>
+        `;
+    }).join("");
+
+    hourlyChart.innerHTML = `
+        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"
+             aria-label="Temperature for the next ${count} hours, from ${Math.round(min)}° to ${Math.round(max)}°">
+            <defs>
+                <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#fff" stop-opacity="0.45"></stop>
+                    <stop offset="100%" stop-color="#fff" stop-opacity="0"></stop>
+                </linearGradient>
+            </defs>
+            <path class="chart-area" d="${area}" fill="url(#chartFill)"></path>
+            <path class="chart-line" d="${line}" pathLength="1"></path>
+            ${columns}
+        </svg>
+    `;
+    hourlyChart.scrollLeft = 0;
+}
+
+function updateUI(place, weatherData, airData) {
+    currentPlace = { name: place.name, latitude: place.latitude, longitude: place.longitude };
+    lastWeather = weatherData;
+    lastAir = airData;
+
+    // ★ Remember the last place so it loads on the next visit
+    prefs.last = currentPlace;
+    savePrefs();
+
+    renderAll();
     document.querySelector(".weather").style.display = "block";
 }
+
+// ★ Renders everything from the stored data — also used when switching °C/°F
+function renderAll() {
+    const weatherData = lastWeather;
+    const current = weatherData.current;
+    const code = current.weather_code;
+    const isDay = current.is_day === 1;
+
+    document.querySelector(".city").textContent = currentPlace.name;
+    document.querySelector(".temp").textContent = `${Math.round(toUnit(current.temperature_2m))}°${isImperial() ? "F" : "C"}`;
+    document.querySelector(".condition").textContent =
+        `${WEATHER_LABELS[code] || "—"} · Feels like ${formatTemp(current.apparent_temperature)}`;
+    document.querySelector(".wind").textContent = formatWind(current.wind_speed_10m);
+    document.querySelector(".humidity").textContent = `${current.relative_humidity_2m}%`;
+
+    weatherIcon.src = getWeatherIconPath(code, isDay);
+    updateDynamicBackground(weatherData);
+    renderAdvice(weatherData, lastAir);
+    renderHourlyChart(weatherData);
+    renderForecast(weatherData);
+    renderInsights(weatherData, lastAir);
+    updateSaveButton();
+    renderSavedList();
+}
+
+/* =========================================================
+   ★ What to wear / do
+   ========================================================= */
+
+function buildAdvice(weatherData, airData) {
+    const current = weatherData.current;
+    const condition = getCondition(current.weather_code);
+    const feels = current.apparent_temperature;
+    const wind = current.wind_speed_10m;
+    const isDay = current.is_day === 1;
+    const uvMax = weatherData.daily.uv_index_max?.[0] ?? 0;
+    const aqi = airData?.current?.us_aqi;
+
+    // ★ Look at the next 12 hours, not just this moment
+    const start = currentHourIndex(weatherData);
+    const next = (series) => (series || []).slice(start, start + 12).filter((v) => v != null);
+    const nextTemps = next(weatherData.hourly.temperature_2m);
+    const nextRain = Math.max(0, ...next(weatherData.hourly.precipitation_probability));
+    const swing = nextTemps.length ? Math.max(...nextTemps) - Math.min(...nextTemps) : 0;
+    const wet = ["rain", "drizzle", "thunderstorm"].includes(condition) || nextRain >= 50;
+
+    const wear = [];
+    const todo = [];
+
+    if (feels <= 0) wear.push(["🧤", "Heavy coat, gloves, hat and scarf"]);
+    else if (feels <= 8) wear.push(["🧥", "A warm coat and a hat"]);
+    else if (feels <= 14) wear.push(["🧥", "A jacket or a warm sweater"]);
+    else if (feels <= 19) wear.push(["👕", "Long sleeves or a light jacket"]);
+    else if (feels <= 26) wear.push(["👕", "T-shirt weather"]);
+    else wear.push(["🩳", "Light, breathable clothes"]);
+
+    if (swing >= 8) {
+        wear.push(["🧅", `Dress in layers: ${formatTemp(Math.min(...nextTemps))} to ${formatTemp(Math.max(...nextTemps))} over the next 12h`]);
+    }
+    if (wet && condition !== "snow") wear.push(["☔", `Take an umbrella or a rain jacket (${nextRain}% chance of rain)`]);
+    else if (nextRain >= 30 && condition !== "snow") wear.push(["🌂", `Pack a small umbrella, just in case (${nextRain}%)`]);
+    if (condition === "snow") wear.push(["🥾", "Waterproof boots with good grip"]);
+    // ★ UV advice only matters while the sun is up
+    if (isDay && uvMax >= 6) wear.push(["🕶️", "Sunglasses, a hat and SPF 30+"]);
+    else if (isDay && uvMax >= 3 && !wet) wear.push(["🧴", "Sunscreen if you'll be out a while"]);
+    if (wind >= 30) wear.push(["💨", "A windproof layer, it's gusty"]);
+
+    if (condition === "thunderstorm") todo.push(["⛈️", "Stay indoors, storms are expected"]);
+    else if (condition === "snow") todo.push(["⛄", "Snowman weather, but drive carefully"]);
+    else if (condition === "fog") todo.push(["🚗", "Low visibility, take care on the road"]);
+    else if (wet && nextRain >= 70) todo.push(["🎬", "Good day for a café, museum or a movie"]);
+    else if (wet) todo.push(["⏱️", "Plan outdoor errands around the showers"]);
+    else if (feels >= 15 && feels <= 28 && nextRain < 30) {
+        todo.push(isDay
+            ? ["🚶", "Great for a walk, a run or a picnic"]
+            : ["🌙", "A nice evening for a stroll"]);
+    }
+
+    if (feels >= 30) todo.push(["💧", "Stay hydrated and avoid the midday sun"]);
+    if (isDay && uvMax >= 8) todo.push(["⛱️", "Seek shade between 11am and 3pm"]);
+    if (wind >= 40) todo.push(["🪁", "Secure anything loose outside"]);
+    if (aqi > 100) todo.push(["😷", "Limit hard outdoor exercise, air quality is poor"]);
+    else if (aqi != null && aqi <= 50 && !wet && feels >= 10) todo.push(["🪟", "Air is clean, a good time to open the windows"]);
+    if (feels <= 0) todo.push(["☕", "Keep outdoor trips short and warm up often"]);
+
+    if (!todo.length) todo.push(["✅", "No weather worries, plan whatever you like"]);
+
+    return { wear: wear.slice(0, 4), todo: todo.slice(0, 4) };
+}
+
+function fillAdviceList(listEl, items) {
+    listEl.innerHTML = "";
+    items.forEach(([icon, text]) => {
+        const li = document.createElement("li");
+        const iconEl = document.createElement("span");
+        iconEl.className = "advice-icon";
+        iconEl.textContent = icon;
+        li.append(iconEl, document.createTextNode(text));
+        listEl.appendChild(li);
+    });
+}
+
+function renderAdvice(weatherData, airData) {
+    const { wear, todo } = buildAdvice(weatherData, airData);
+    fillAdviceList(document.getElementById("wearList"), wear);
+    fillAdviceList(document.getElementById("doList"), todo);
+}
+
+/* =========================================================
+   ★ Air quality, UV, pollen and sunrise/sunset cards
+   ========================================================= */
+
+const AQI_LEVELS = [
+    { max: 50, label: "Good", color: "#4ade80" },
+    { max: 100, label: "Moderate", color: "#facc15" },
+    { max: 150, label: "Unhealthy for sensitive groups", color: "#fb923c" },
+    { max: 200, label: "Unhealthy", color: "#f87171" },
+    { max: 300, label: "Very unhealthy", color: "#c084fc" },
+    { max: Infinity, label: "Hazardous", color: "#be123c" },
+];
+
+const UV_LEVELS = [
+    { max: 2, label: "Low", color: "#4ade80" },
+    { max: 5, label: "Moderate", color: "#facc15" },
+    { max: 7, label: "High", color: "#fb923c" },
+    { max: 10, label: "Very high", color: "#f87171" },
+    { max: Infinity, label: "Extreme", color: "#c084fc" },
+];
+
+// ★ Rough grains/m³ thresholds per pollen type: [moderate from, high from]
+const POLLEN_TYPES = [
+    { key: "grass_pollen", name: "Grass", limits: [20, 50] },
+    { key: "birch_pollen", name: "Birch", limits: [15, 90] },
+    { key: "alder_pollen", name: "Alder", limits: [15, 90] },
+    { key: "olive_pollen", name: "Olive", limits: [15, 90] },
+    { key: "mugwort_pollen", name: "Mugwort", limits: [10, 50] },
+    { key: "ragweed_pollen", name: "Ragweed", limits: [10, 50] },
+];
+const POLLEN_LEVELS = [
+    { label: "Low", color: "#4ade80" },
+    { label: "Moderate", color: "#facc15" },
+    { label: "High", color: "#f87171" },
+];
+
+const levelFor = (levels, value) => levels.find((level) => value <= level.max);
+
+function meter(fraction, color) {
+    const position = Math.min(Math.max(fraction, 0), 1) * 100;
+    return `
+        <div class="meter">
+            <span class="meter-marker" style="left: ${position}%; background: ${color}"></span>
+        </div>
+    `;
+}
+
+function cardHTML(title, value, label, color, extra = "") {
+    return `
+        <p class="insight-title">${title}</p>
+        <p class="insight-value">${value}</p>
+        <p class="insight-label"><span class="dot" style="background: ${color}"></span>${label}</p>
+        ${extra}
+    `;
+}
+
+function unavailableHTML(title, message) {
+    return `
+        <p class="insight-title">${title}</p>
+        <p class="insight-value muted">—</p>
+        <p class="insight-sub">${message}</p>
+    `;
+}
+
+function formatClock(localTime) {
+    return new Date(localTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function formatDuration(ms) {
+    const minutes = Math.round(ms / 60000);
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+function renderInsights(weatherData, airData) {
+    const aqiCard = document.getElementById("aqiCard");
+    const uvCard = document.getElementById("uvCard");
+    const pollenCard = document.getElementById("pollenCard");
+    const sunCard = document.getElementById("sunCard");
+    const air = airData?.current;
+
+    // Air quality
+    if (air?.us_aqi != null) {
+        const level = levelFor(AQI_LEVELS, air.us_aqi);
+        const pm = air.pm2_5 != null ? `<p class="insight-sub">PM2.5 · ${Math.round(air.pm2_5)} µg/m³</p>` : "";
+        aqiCard.innerHTML = cardHTML("Air Quality", Math.round(air.us_aqi), level.label, level.color,
+            meter(air.us_aqi / 300, level.color) + pm);
+    } else {
+        aqiCard.innerHTML = unavailableHTML("Air Quality", "Air quality data isn't available right now.");
+    }
+
+    // UV index
+    const uvNow = weatherData.current.uv_index ?? 0;
+    const uvMax = weatherData.daily.uv_index_max?.[0];
+    const uvLevel = levelFor(UV_LEVELS, uvNow);
+    uvCard.innerHTML = cardHTML("UV Index", Math.round(uvNow), uvLevel.label, uvLevel.color,
+        meter(uvNow / 11, uvLevel.color) +
+        (uvMax != null ? `<p class="insight-sub">Peak today · ${Math.round(uvMax)}</p>` : ""));
+
+    // Pollen — Open-Meteo only covers Europe, so expect gaps elsewhere
+    const readings = POLLEN_TYPES
+        .filter((type) => air?.[type.key] != null)
+        .map((type) => {
+            const value = air[type.key];
+            const severity = value >= type.limits[1] ? 2 : value >= type.limits[0] ? 1 : 0;
+            return { ...type, value, severity };
+        })
+        .sort((a, b) => b.severity - a.severity || b.value - a.value);
+
+    if (readings.length) {
+        const top = readings[0];
+        const level = POLLEN_LEVELS[top.severity];
+        const sub = top.value > 0
+            ? `Mostly ${top.name.toLowerCase()} · ${Math.round(top.value)} grains/m³`
+            : "Barely any pollen in the air";
+        pollenCard.innerHTML = cardHTML("Pollen", level.label, "Allergy risk",
+            level.color, `<p class="insight-sub">${sub}</p>`);
+    } else {
+        pollenCard.innerHTML = unavailableHTML("Pollen", "Pollen forecasts are only available in Europe.");
+    }
+
+    // Sunrise / sunset with the sun's position along its arc
+    const now = new Date(weatherData.current.time);
+    const sunrise = new Date(weatherData.daily.sunrise[0]);
+    const sunset = new Date(weatherData.daily.sunset[0]);
+    const progress = (now - sunrise) / (sunset - sunrise);
+    const isUp = progress >= 0 && progress <= 1;
+    const angle = Math.PI * (1 - Math.min(Math.max(progress, 0), 1));
+    const sunX = 100 + 90 * Math.cos(angle);
+    const sunY = 90 - 90 * Math.sin(angle);
+
+    let nextEvent;
+    if (now < sunrise) nextEvent = `Sunrise in ${formatDuration(sunrise - now)}`;
+    else if (isUp) nextEvent = `Sunset in ${formatDuration(sunset - now)}`;
+    else nextEvent = "The sun has set for today";
+
+    sunCard.innerHTML = `
+        <p class="insight-title">Sunrise &amp; Sunset</p>
+        <svg class="sun-arc" viewBox="-8 -8 216 106" aria-hidden="true">
+            <path d="M 10 90 A 90 90 0 0 1 190 90" class="arc-track"></path>
+            ${isUp ? `<path d="M 10 90 A 90 90 0 0 1 ${sunX.toFixed(1)} ${sunY.toFixed(1)}" class="arc-done"></path>
+            <circle cx="${sunX.toFixed(1)}" cy="${sunY.toFixed(1)}" r="7" class="arc-sun"></circle>` : ""}
+            <line x1="0" y1="90" x2="200" y2="90" class="arc-horizon"></line>
+        </svg>
+        <div class="sun-times">
+            <span>↑ ${formatClock(weatherData.daily.sunrise[0])}</span>
+            <span>↓ ${formatClock(weatherData.daily.sunset[0])}</span>
+        </div>
+        <p class="insight-sub">${nextEvent} · ${formatDuration(sunset - sunrise)} of daylight</p>
+    `;
+}
+
+/* =========================================================
+   Data fetching
+   ========================================================= */
 
 async function getCoordinates(city) {
     const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1`);
@@ -353,10 +1036,43 @@ async function getCoordinates(city) {
 }
 
 async function getWeather(lat, lon) {
-    const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=relativehumidity_2m,is_day&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`
-    );
+    const params = new URLSearchParams({
+        latitude: lat,
+        longitude: lon,
+        current: "temperature_2m,apparent_temperature,relative_humidity_2m,is_day,weather_code,wind_speed_10m,uv_index",
+        hourly: "temperature_2m,relativehumidity_2m,precipitation_probability,weather_code,is_day",
+        daily: "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max",
+        timezone: "auto",
+    });
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+    if (!res.ok) throw new Error(`Weather request failed: ${res.status}`);
     return await res.json();
+}
+
+// ★ Air quality + pollen come from Open-Meteo's separate air quality API
+async function getAirQuality(lat, lon) {
+    const params = new URLSearchParams({
+        latitude: lat,
+        longitude: lon,
+        current: "us_aqi,pm2_5," + POLLEN_TYPES.map((type) => type.key).join(","),
+        timezone: "auto",
+    });
+    const res = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${params}`);
+    if (!res.ok) throw new Error(`Air quality request failed: ${res.status}`);
+    return await res.json();
+}
+
+// ★ Fetches weather and air quality together; air quality failing shouldn't block the forecast
+async function loadPlace(place) {
+    const [weatherResult, airResult] = await Promise.allSettled([
+        getWeather(place.latitude, place.longitude),
+        getAirQuality(place.latitude, place.longitude),
+    ]);
+
+    if (weatherResult.status === "rejected") throw weatherResult.reason;
+
+    hideLoading(); // ★ Clear loading before showing weather
+    updateUI(place, weatherResult.value, airResult.status === "fulfilled" ? airResult.value : null);
 }
 
 async function checkWeather(input) {
@@ -365,6 +1081,7 @@ async function checkWeather(input) {
     // ★ Show loading before any async work
     const previewName = typeof input === "object" ? input.name : input;
     showLoading(previewName);
+    clearTimeout(debounceTimer); // ★ Don't let a pending autocomplete reopen the list
     suggestionsList.style.display = "none";
 
     try {
@@ -386,9 +1103,7 @@ async function checkWeather(input) {
             cityName = location.name;
         }
 
-        const weatherData = await getWeather(lat, lon);
-        hideLoading(); // ★ Clear loading before showing weather
-        updateUI(cityName, weatherData);
+        await loadPlace({ name: cityName, latitude: lat, longitude: lon });
 
     } catch (error) {
         // ★ Network or unexpected error
@@ -409,6 +1124,12 @@ searchBox.addEventListener("keydown", (event) => {
         checkWeather(searchBox.value.trim());
     }
 });
+
+// ★ Startup: apply preferences and reopen the last place viewed
+applyTheme();
+applyUnitButtons();
+renderSavedList();
+if (prefs.last) checkWeather(prefs.last);
 </script>
     </body>
 </html>

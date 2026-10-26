@@ -70,11 +70,27 @@
     .forecast-list {
         grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
     }
+
+    .advice-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .panel {
+        padding: 16px;
+    }
+
+    .insight-value {
+        font-size: 26px;
+    }
 }
 
 @media (max-width: 400px) {
      .card {
         padding: 20px 12px;
+    }
+
+    .insights {
+        grid-template-columns: 1fr;
     }
 
     .status-box {
