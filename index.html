@@ -7,8 +7,8 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;500;600&display=swap">
         <!-- ★ ?v= busts the browser cache when the stylesheets change -->
-        <link rel="stylesheet" href="style.css?v=3">
-        <link rel="stylesheet" href="mediaqueries.css?v=3">
+        <link rel="stylesheet" href="style.css?v=4">
+        <link rel="stylesheet" href="mediaqueries.css?v=4">
         <script>
             // ★ Apply the saved theme before first paint so dark mode doesn't flash
             (function () {
@@ -40,6 +40,9 @@
             </div>
         </div>
 
+        <!-- ★ Saved locations -->
+        <div class="saved-list" id="savedList"></div>
+
         <div class="search">
             <div class="input-wrap">
                 <input type="text" placeholder="Search for a city" spellcheck="false">
@@ -59,9 +62,6 @@
             <button type="button" class="pill-btn" id="themeToggle" title="Change theme"></button>
         </div>
     </header>
-
-    <!-- ★ Saved locations -->
-    <div class="saved-list" id="savedList"></div>
 
             <!-- ★ Loading state -->
 <div class="status-box loading-box" id="loadingBox">
@@ -109,15 +109,15 @@
                     <div class="hero-visual">
                         <img src="images/rain.png" class="weather-icon" alt="Weather icon">
                     </div>
-
-                    <aside class="daily">
-                        <h3 class="section-title">7-Day Forecast</h3>
-                        <ul class="forecast-list"></ul>
-                    </aside>
                 </section>
 
+                <aside class="daily panel">
+                    <h3 class="section-title">7-Day Forecast</h3>
+                    <ul class="forecast-list"></ul>
+                </aside>
+
                 <!-- ★ Hourly temperature chart -->
-                <section class="hourly">
+                <section class="hourly panel">
                     <div class="section-head">
                         <h3 class="section-title">Next 24 Hours</h3>
                         <div class="scroll-btns">
@@ -128,9 +128,8 @@
                     <div class="hourly-chart" id="hourlyChart"></div>
                 </section>
 
-                <section class="extras">
-                    <!-- ★ What to wear / do -->
-                    <div class="advice panel">
+                <!-- ★ What to wear / do -->
+                <section class="advice panel">
                         <h3 class="section-title">What to wear &amp; do</h3>
                         <div class="advice-grid">
                             <div>
@@ -142,9 +141,10 @@
                                 <ul class="advice-list" id="doList"></ul>
                             </div>
                         </div>
-                    </div>
+                </section>
 
-                    <!-- ★ Air quality, UV, pollen and sun cards -->
+                <!-- ★ Air quality, UV, pollen and sun cards -->
+                <section class="cards">
                     <div class="insight-card panel" id="aqiCard"></div>
                     <div class="insight-card panel" id="uvCard"></div>
                     <div class="insight-card panel" id="pollenCard"></div>
@@ -707,11 +707,13 @@ function renderHourlyChart(weatherData, animate = true) {
     }
 
     // ★ Spread the hours across the available width; scroll only when they can't fit
-    const padX = 30;
-    const step = Math.max(48, (hourlyChart.clientWidth - padX * 2) / (count - 1));
-    const height = 190;
-    const lineTop = 40;
-    const lineBottom = 92;
+    const padX = 24;
+    // On phones keep the hours roomy and let the chart scroll instead
+    const minStep = hourlyChart.clientWidth < 600 ? 46 : 30;
+    const step = Math.max(minStep, (hourlyChart.clientWidth - padX * 2) / (count - 1));
+    const height = 156;
+    const lineTop = 30;
+    const lineBottom = 70;
     const width = Math.floor(padX * 2 + (count - 1) * step);
 
     const values = temps.slice(start, start + count).map(toUnit);
@@ -725,7 +727,7 @@ function renderHourlyChart(weatherData, animate = true) {
     }));
 
     const line = smoothPath(points);
-    const area = `${line} L ${points[points.length - 1].x} 118 L ${points[0].x} 118 Z`;
+    const area = `${line} L ${points[points.length - 1].x} 92 L ${points[0].x} 92 Z`;
 
     const columns = points.map((point, i) => {
         const index = start + i;
@@ -734,16 +736,18 @@ function renderHourlyChart(weatherData, animate = true) {
             : new Date(time[index]).toLocaleTimeString(undefined, { hour: "numeric" });
         const chance = rainChance[index];
         const icon = getWeatherIconPath(codes[index], isDaySeries[index] === 1);
+        // ★ When the hours are packed tight, label every other one so the times don't collide
+        const showHour = step >= 40 || i % 2 === 0;
 
         return `
             <g class="${i === 0 ? "chart-col now" : "chart-col"}">
                 <text class="chart-temp" x="${point.x}" y="${(point.y - 14).toFixed(1)}">${Math.round(values[i])}°</text>
                 <circle class="chart-dot" cx="${point.x}" cy="${point.y.toFixed(1)}" r="${i === 0 ? 6 : 2.5}"></circle>
-                <line class="chart-tick" x1="${point.x}" y1="124" x2="${point.x}" y2="130"></line>
-                <image href="${icon}" x="${point.x - 12}" y="134" width="24" height="24"></image>
-                ${chance >= 20 ? `<text class="chart-rain" x="${point.x}" y="170">${chance}%</text>` : ""}
-                ${i === 0 ? `<rect class="chart-now-pill" x="${point.x - 22}" y="173" width="44" height="17" rx="5"></rect>` : ""}
-                <text class="chart-hour" x="${point.x}" y="186">${hourLabel}</text>
+                <line class="chart-tick" x1="${point.x}" y1="94" x2="${point.x}" y2="99"></line>
+                <image href="${icon}" x="${point.x - 11}" y="103" width="22" height="22"></image>
+                ${chance >= 20 ? `<text class="chart-rain" x="${point.x}" y="137">${chance}%</text>` : ""}
+                ${i === 0 ? `<rect class="chart-now-pill" x="${point.x - 22}" y="140" width="44" height="16" rx="5"></rect>` : ""}
+                ${showHour ? `<text class="chart-hour" x="${point.x}" y="152">${hourLabel}</text>` : ""}
             </g>
         `;
     }).join("");
@@ -804,7 +808,7 @@ function updateUI(place, weatherData, airData) {
     welcome.style.display = "none";
     saveBtn.hidden = false;
     // ★ Show first so the hourly chart can measure its width
-    document.querySelector(".weather").style.display = "block";
+    document.querySelector(".weather").style.display = "grid";
     renderAll();
 }
 
@@ -897,7 +901,7 @@ function buildAdvice(weatherData, airData) {
 
     if (!todo.length) todo.push(["✅", "No weather worries, plan whatever you like"]);
 
-    return { wear: wear.slice(0, 4), todo: todo.slice(0, 4) };
+    return { wear: wear.slice(0, 3), todo: todo.slice(0, 3) };
 }
 
 function fillAdviceList(listEl, items) {
