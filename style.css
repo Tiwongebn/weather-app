@@ -158,9 +158,29 @@ button { font: inherit; color: inherit; }
 }
 
 .place-date {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
     font-size: 13px;
     color: var(--muted);
 }
+
+/* ★ Shown while another day is selected */
+.today-btn {
+    border: 1px solid var(--accent);
+    background: rgba(245, 165, 36, 0.15);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1;
+    padding: 3px 9px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.today-btn:hover { background: rgba(245, 165, 36, 0.3); }
+.today-btn[hidden] { display: none; }
 
 .save-btn {
     border: 0;
@@ -550,18 +570,35 @@ button { font: inherit; color: inherit; }
 
 .forecast-day {
     position: relative;
+    width: 100%;
     display: grid;
     grid-template-columns: 30px minmax(0, 1fr) auto;
     align-items: center;
     gap: 12px;
     padding: clamp(6px, 1.1vh, 14px) 10px;
+    border: 0;
     border-radius: 14px;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease;
 }
 
-.forecast-day.today { background: var(--input-bg); }
+.forecast-day:hover { background: rgba(255, 255, 255, 0.07); }
 
-/* ★ Accent bar marks today */
-.forecast-day.today::before {
+.forecast-day:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.forecast-day.selected { background: var(--input-bg); }
+
+.forecast-name,
+.forecast-weekday,
+.forecast-desc { display: block; min-width: 0; }
+
+/* ★ Accent bar marks the day on screen */
+.forecast-day.selected::before {
     content: "";
     position: absolute;
     left: 0;
