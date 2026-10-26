@@ -1,131 +1,78 @@
 /* Dedicated responsive breakpoints for consistent layout across devices */
 
-/* Tablet / small laptop: daily forecast moves under the hero */
-@media (max-width: 1100px) {
+/* Tablet: search drops to its own row, cards and tips stack below */
+@media (max-width: 1200px) {
     .topbar {
         grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "place controls"
+            "search search"
+            "saved saved";
+        gap: 14px;
     }
 
-    .search {
-        grid-column: 1 / -1;
-        grid-row: 2;
+    .weather {
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+        grid-template-rows: auto;
+        grid-template-areas:
+            "hero   daily"
+            "hourly hourly"
+            "advice advice"
+            "cards  cards";
     }
 
-    .hero {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-
-    .daily {
-        grid-column: 1 / -1;
-    }
-
-    /* ★ Days side by side instead of a vertical list */
-    .forecast-list {
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-        gap: 6px;
-    }
-
-    .forecast-day {
-        grid-template-columns: 1fr;
-        justify-items: center;
-        text-align: center;
-        gap: 6px;
-        padding: 10px 4px;
-    }
-
-    .forecast-day.today::before {
-        left: 25%;
-        right: 25%;
-        top: 0;
-        bottom: auto;
-        width: auto;
-        height: 3px;
-    }
-
-    .forecast-desc { display: none; }
-
-    .forecast-temp { text-align: center; }
-
-    .forecast-temp span {
-        display: block;
-        margin-left: 0;
-    }
-
-    .extras {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .advice {
-        grid-row: auto;
-    }
-}
-
-/* Phones */
-@media (max-width: 640px) {
-    .app {
-        width: calc(100% - 16px);
-        margin: 8px auto;
-        padding: 18px 16px 24px;
-        border-radius: 24px;
-    }
-
-    .hero {
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 12px;
-        margin-top: 20px;
-    }
-
-    .hero-visual {
-        min-height: 0;
+    .temp {
+        font-size: clamp(4.5rem, 3rem + 5vw, 7rem);
     }
 
     .weather-icon {
-        width: 120px;
+        height: clamp(130px, 18vw, 220px);
+    }
+}
+
+@media (max-width: 800px) {
+    .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Phones: one column */
+@media (max-width: 640px) {
+    .app {
+        padding: 14px 16px 22px;
+    }
+
+    .weather {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "hero"
+            "daily"
+            "hourly"
+            "advice"
+            "cards";
+        gap: 12px;
+    }
+
+    .hero {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 4px 0 8px;
+    }
+
+    .temp {
+        font-size: 4.75rem;
+    }
+
+    .weather-icon {
+        height: 110px;
     }
 
     .details {
         gap: 28px;
-        margin-top: 20px;
+        margin-top: 16px;
     }
 
-    /* ★ Back to a vertical list — seven columns are too tight on a phone */
-    .forecast-list {
-        grid-template-columns: 1fr;
-        gap: 2px;
-    }
-
-    .forecast-day {
-        grid-template-columns: 30px minmax(0, 1fr) auto;
-        justify-items: stretch;
-        text-align: left;
-        gap: 12px;
-        padding: 8px 10px;
-    }
-
-    .forecast-day.today::before {
-        left: 0;
-        right: auto;
-        top: 22%;
-        bottom: 22%;
-        width: 3px;
-        height: auto;
-    }
-
-    .forecast-desc { display: block; }
-
-    .forecast-temp { text-align: right; }
-
-    .forecast-temp span {
-        display: inline;
-        margin-left: 8px;
-    }
-
-    .hourly,
-    .extras {
-        margin-top: 24px;
-    }
-
-    .extras {
+    .cards {
         gap: 12px;
     }
 
@@ -134,11 +81,7 @@
     }
 
     .panel {
-        padding: 16px;
-    }
-
-    .insight-value {
-        font-size: 26px;
+        padding: 14px 16px;
     }
 }
 
@@ -152,11 +95,14 @@
         padding: 12px 14px;
     }
 
-    .extras {
+    .cards {
         grid-template-columns: 1fr;
     }
+}
 
-    .advice {
-        grid-column: auto;
+/* ★ Short laptop screens: trim the tips to two each so the dashboard still fits one screen */
+@media (min-width: 1201px) and (max-height: 760px) {
+    .advice-list li:nth-child(n + 3) {
+        display: none;
     }
 }
